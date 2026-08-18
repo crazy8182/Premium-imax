@@ -37,7 +37,12 @@ def register_handlers(app):
 
     app.add_handler(MessageHandler(filters.PHOTO, screenshot))
     # TEMPORARY: Admin-only video file_id extractor. Remove after getting the ID.
-    app.add_handler(MessageHandler(filters.VIDEO, get_video_id, group=0))
+    app.add_handler(
+    MessageHandler(
+        filters.VIDEO,
+        get_video_id
+    )
+    )
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, offer_input), group=0)
     app.add_handler(MessageHandler(filters.ALL, text_log), group=99)
     
