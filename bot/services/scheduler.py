@@ -10,6 +10,7 @@ async def process_memberships():
     now = datetime.now(timezone.utc)
 
     # Expiry
+    # Expiry
     cursor = expired_users()
     async for user in cursor:
         uid = user["user_id"]
@@ -20,6 +21,7 @@ async def process_memberships():
         except Exception:
             pass
 
+    # Reminders
     # Reminders
     cursor = active_users()
     async for user in cursor:
