@@ -22,10 +22,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"👋 Welcome {u.first_name or 'User'}!\n\n"
         "Help k liye uper ki video dekhein.\n\n"
-        "Premium lene ke liye pehle <b>Buy Premium</b> pe tap karein.\n\n"
+        "Premium lene ke liye pehle Buy Premium pe tap karein.\n\n"
         "Agar payment already ho gaya hai, toh "
-        "<b>Buy Premium</b> me category select karke "
-        "<b>Paid</b> button pe tap karke apna payment proof submit karein.",
+        "Buy Premium me category select karke "
+        "Paid button pe tap karke apna payment proof submit karein.",
         reply_markup=main_menu()
     )
 
