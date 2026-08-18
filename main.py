@@ -5,6 +5,7 @@ from aiohttp import web
 from telegram.ext import Application
 from bot.config import BOT_TOKEN
 from bot.db import init_db
+from bot.services.offers import init_offers
 from bot.bot import register_handlers
 from bot.services.scheduler import scheduler_loop
 
@@ -31,6 +32,7 @@ async def start_health_server():
 
 async def main():
     await init_db()
+    await init_offers()
 
     application = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
     register_handlers(application)

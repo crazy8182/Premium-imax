@@ -49,3 +49,28 @@ Do not run the same BOT_TOKEN in another bot instance. Keep one Koyeb replica.
 
 ### Colored Telegram buttons
 This build uses Telegram's official button styles: blue (`primary`), green (`success`) and red (`danger`). It requires `python-telegram-bot==22.7` or newer and a Telegram client released after February 9, 2026 to display the colors.
+
+
+## Future Offers
+Offers are controlled from `.env` for each plan. No code change is needed later.
+
+Use exactly one offer type per plan:
+- `none` = normal plan
+- `extra_days` = give extra validity days
+- `discount` = reduce the plan price by a percentage
+
+Examples:
+- `PLAN_1_OFFER_TYPE=extra_days` + `PLAN_1_OFFER_VALUE=7` → 30 days becomes 37 days.
+- `PLAN_1_OFFER_TYPE=discount` + `PLAN_1_OFFER_VALUE=20` → ₹99 becomes ₹79 (rounded).
+
+Optional `PLAN_1_OFFER_LABEL=Independence Day Offer` is shown with the offer.
+
+The selected offer is saved with the payment, so if you change/disable an offer later, an already-submitted payment keeps the offer that the customer saw.
+
+## Admin Offer Manager
+
+Admin users can manage offers directly from Telegram with:
+
+`/offer`
+
+Choose a plan, then select **Extra Days**, **Discount %**, or **Disable Offer**. The bot asks for the value, offer label, and expiry in days. Use `0` for no expiry. Offers are stored in MongoDB, so they persist across Koyeb restarts/redeploys. When an offer is activated, users are notified and can use `/offers` to view active offers.
