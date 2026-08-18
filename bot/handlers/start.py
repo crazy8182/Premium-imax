@@ -19,7 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await upsert_user(u.id,**data)
     else:
         await upsert_user(u.id,**data)
-    tutorial_video = "https://t.me/c/4413195479/3"
+    tutorial_video = "BAACAgUAAxkBAAPsaoRf7uVAxVZOnPgffz27gnuYpCwAAqAfAAKNGiBUhUmOHWriiWE9BA"
     await update.message.reply_video(
         video=tutorial_video,
         caption=(
