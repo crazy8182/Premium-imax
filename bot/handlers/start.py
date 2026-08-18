@@ -29,15 +29,8 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "💼 Contact Support",
-                callback_data="contact_support",
+                url=f'https://t.me/imaxsubsciptionbot',
                 style="primary"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🏠 Main Menu",
-                callback_data="main_menu",
-                style="success"
             )
         ]
     ]
