@@ -14,7 +14,8 @@ def register_handlers(app):
     app.add_handler(CommandHandler("pending", pending))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("premium", manual_premium))
-    app.add_handler(CommandHandler("check_premium", check_premium))\n    app.add_handler(CommandHandler("broadcast", broadcast))
+    app.add_handler(CommandHandler("check_premium", check_premium))
+    app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(CommandHandler("remove", remove_cmd))
     app.add_handler(CommandHandler("offer", offer_cmd))
 
