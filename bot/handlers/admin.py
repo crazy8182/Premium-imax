@@ -7,6 +7,15 @@ from bot.services.premium import make_invite, remove_member
 
 def admin_only(uid): return uid in ADMIN_IDS
 
+def utc_aware(dt):
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    return dt
+
 async def approve(update, context):
     q=update.callback_query
     if not admin_only(q.from_user.id): return await q.answer("Unauthorized.",show_alert=True)
@@ -19,7 +28,7 @@ async def approve(update, context):
     offer_days=int(pmt.get("offer_days") or offer_details(plan)["days"])
     now=datetime.now(timezone.utc)
     user=await get_user(pmt["user_id"])
-    old=user.get("premium_expiry") if user else None
+    old=utc_aware(user.get("premium_expiry")) if user else None
     expiry=(old+timedelta(days=offer_days)) if old and old>now else now+timedelta(days=offer_days)
     await upsert_user(pmt["user_id"],premium_status=True,premium_plan=pmt["plan_id"],premium_plan_name=plan["name"],premium_start=now,premium_expiry=expiry,joined_group=False,last_reminder=None,approved_payment_id=pid)
     if pmt.get("discount_credit_used"):
@@ -75,7 +84,7 @@ async def manual_premium(update, context):
     uid,days=int(context.args[0]),int(context.args[1])
     now=datetime.now(timezone.utc)
     user=await get_user(uid)
-    old=user.get("premium_expiry") if user else None
+    old=utc_aware(user.get("premium_expiry")) if user else None
     expiry=(old+timedelta(days=days)) if old and old>now else now+timedelta(days=days)
     await upsert_user(uid,premium_status=True,premium_plan="manual",premium_plan_name=f"Manual {days} Days",premium_start=now,premium_expiry=expiry)
     link=await make_invite(context.bot,uid)
@@ -217,3 +226,4 @@ async def offer_list_cb(update, context):
             lines.append(f"🔥 <b>{p['name']}</b> — {o['type']} {o['value']}\n📝 {o['label'] or 'No label'}{exp}")
     text="📋 <b>Current Offers</b>\n\n"+"\n\n".join(lines) if lines else "📋 <b>Current Offers</b>\n\n😔 No active offers."
     await q.message.edit_text(text, parse_mode="HTML", reply_markup=_offer_manager_keyboard())
+    
