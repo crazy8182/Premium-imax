@@ -60,3 +60,4 @@ async def loop():
 
 async def start_scheduler():
     asyncio.create_task(loop())
+    
