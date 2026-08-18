@@ -1,4 +1,4 @@
-python-telegram-bot==22.5
+python-telegram-bot==22.7
 motor==3.7.1
 pymongo==4.14.1
 python-dotenv==1.1.1

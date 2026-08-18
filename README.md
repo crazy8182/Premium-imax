@@ -45,3 +45,7 @@ The bot must be administrator in the Premium Group with permission to manage mem
 
 ## Important
 Do not run the same BOT_TOKEN in another bot instance. Keep one Koyeb replica.
+
+
+### Colored Telegram buttons
+This build uses Telegram's official button styles: blue (`primary`), green (`success`) and red (`danger`). It requires `python-telegram-bot==22.7` or newer and a Telegram client released after February 9, 2026 to display the colors.
