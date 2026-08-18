@@ -31,19 +31,56 @@ def main_menu():
     ])
 
 
-def plans_menu(credits=0):
+def plans_menu(credits=0, expired=False):
     rows = []
     for p in PLANS:
         offer = offer_details(p)
-        price = round(offer["price"] * 0.95) if credits else offer["price"]
-        label = f"💎 {p['name']} — ₹{price}"
-        if offer["active"]:
-            label += " 🔥"
-        if credits:
-            label += " 🎁"
-        rows.append([btn(label, callback_data=f"plan:{p['id']}", style=PRIMARY)])
 
-    rows.append([btn("🔴 CANCEL", callback_data="home", style=DANGER)])
+        if expired:
+            from bot.config import EXPIRED_DISCOUNT_PERCENT
+            price = round(
+                offer["price"] * (100 - EXPIRED_DISCOUNT_PERCENT) / 100
+            )
+            label = f"💎 {p['name']} — ₹{price} 🔥"
+        else:
+            price = round(offer["price"] * 0.95) if credits else offer["price"]
+            label = f"💎 {p['name']} — ₹{price}"
+            if offer["active"]:
+                label += " 🔥"
+            if credits:
+                label += " 🎁"
+
+        rows.append([
+            btn(label, callback_data=f"plan:{p['id']}", style=PRIMARY)
+        ])
+
+    rows.append([
+        btn("🔴 CANCEL", callback_data="home", style=DANGER)
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+
+def expired_offer_menu():
+    from bot.config import EXPIRED_DISCOUNT_PERCENT
+
+    rows = []
+    for p in PLANS:
+        offer = offer_details(p)
+        price = round(
+            offer["price"] * (100 - EXPIRED_DISCOUNT_PERCENT) / 100
+        )
+        rows.append([
+            btn(
+                f"🔥 {p['name']} — ₹{price} ({EXPIRED_DISCOUNT_PERCENT}% OFF)",
+                callback_data=f"plan:{p['id']}",
+                style=SUCCESS
+            )
+        ])
+
+    rows.append([
+        btn("⭐ BUY PREMIUM", callback_data="plans", style=PRIMARY)
+    ])
     return InlineKeyboardMarkup(rows)
 
 

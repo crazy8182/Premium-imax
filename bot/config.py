@@ -20,6 +20,10 @@ REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 INVITE_VALID_HOURS = int(os.getenv("INVITE_VALID_HOURS", "24"))
 CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
 
+# Special offer shown automatically for 3 days after premium expiry.
+EXPIRED_OFFER_DAYS = int(os.getenv("EXPIRED_OFFER_DAYS", "3"))
+EXPIRED_DISCOUNT_PERCENT = int(os.getenv("EXPIRED_DISCOUNT_PERCENT", "10"))
+
 # Offers are configured per plan.
 # OFFER_TYPE: none | extra_days | discount
 # OFFER_VALUE: extra days OR discount percentage.
