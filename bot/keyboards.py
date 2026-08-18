@@ -1,5 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from bot.config import PLANS
+from bot.config import PLANS, offer_details
 
 # Telegram Bot API supports 3 official button styles:
 # primary = blue, success = green, danger = red.
@@ -24,6 +24,7 @@ def btn(text, callback_data=None, url=None, style=None):
 def main_menu():
     return InlineKeyboardMarkup([
         [btn("BUY PREMIUM", callback_data="plans", style=SUCCESS)],
+        [btn("🔥 OFFERS", callback_data="offers", style=SUCCESS)],
         [btn("MY PREMIUM", callback_data="status", style=PRIMARY)],
         [btn("REFERRAL", callback_data="referral", style=PRIMARY)],
         [btn("HELP", callback_data="help", style=PRIMARY)]
@@ -33,8 +34,11 @@ def main_menu():
 def plans_menu(credits=0):
     rows = []
     for p in PLANS:
-        price = round(p["price"] * 0.95) if credits else p["price"]
+        offer = offer_details(p)
+        price = round(offer["price"] * 0.95) if credits else offer["price"]
         label = f"💎 {p['name']} — ₹{price}"
+        if offer["active"]:
+            label += " 🔥"
         if credits:
             label += " 🎁"
         rows.append([btn(label, callback_data=f"plan:{p['id']}", style=PRIMARY)])
@@ -61,4 +65,11 @@ def join_menu(link):
     return InlineKeyboardMarkup([
         [btn("🟢 JOIN PREMIUM GROUP", url=link, style=SUCCESS)],
         [btn("🔵 CHECK MEMBERSHIP", callback_data="check", style=PRIMARY)]
+    ])
+
+
+def offers_menu():
+    return InlineKeyboardMarkup([
+        [btn("⭐ BUY PREMIUM", callback_data="plans", style=SUCCESS)],
+        [btn("🏠 MAIN MENU", callback_data="home", style=PRIMARY)],
     ])

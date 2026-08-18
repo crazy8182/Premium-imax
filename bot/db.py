@@ -6,6 +6,7 @@ client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=10000)
 db = client[DB_NAME]
 users = db.users
 payments = db.payments
+offer_settings = db.offer_settings
 
 async def init_db():
     await client.admin.command("ping")
@@ -14,6 +15,7 @@ async def init_db():
     await users.create_index("premium_expiry")
     await payments.create_index("payment_id", unique=True)
     await payments.create_index("status")
+    await offer_settings.create_index("plan_id", unique=True)
     print("MongoDB connected successfully.", flush=True)
 
 async def get_user(uid):
@@ -56,3 +58,13 @@ async def award_referral(uid):
         {"$inc":{"successful_referrals":1,"discount_credits":1}}
     )
     return await get_user(rid)
+
+
+def get_offer_settings():
+    return offer_settings.find({})
+
+async def set_offer_settings(plan_id, data):
+    await offer_settings.update_one({"plan_id": plan_id}, {"$set": data}, upsert=True)
+
+async def delete_offer_settings(plan_id):
+    await offer_settings.delete_one({"plan_id": plan_id})
