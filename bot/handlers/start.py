@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_video(
         video=tutorial_video,
         caption=(
-            "👋 <b>Welcome, IMAX SUPPORT!</b>\n\n"
+            "👋 <b>Welcome, {u.first_name or 'User'}!</b>\n\n"
             "Help k liye uper ki video dekhein.\n\n"
             "Premium lene ke liye pehle <b>Check Plans</b> pe tap karein.\n\n"
             "Agar payment already ho gaya hai, toh "
