@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
@@ -73,7 +74,7 @@ async def reject(update, context):
 
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id): return
-    await update.message.reply_text("⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/remove USER_ID\n/offer — Manage Premium Offers")
+    await update.message.reply_text("⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/check_premium\n/remove USER_ID\n/offer — Manage Premium Offers")
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id): return
@@ -240,3 +241,73 @@ async def offer_list_cb(update, context):
     text="📋 <b>Current Offers</b>\n\n"+"\n\n".join(lines) if lines else "📋 <b>Current Offers</b>\n\n😔 No active offers."
     await q.message.edit_text(text, parse_mode="HTML", reply_markup=_offer_manager_keyboard())
     
+
+
+async def check_premium(update, context):
+    """Show all users who have a premium expiry record.
+    Short results are sent as a Telegram message; long results as premium.txt.
+    """
+    if not admin_only(update.effective_user.id):
+        return
+
+    rows = []
+    cursor = users.find(
+        {"premium_expiry": {"$exists": True, "$ne": None}},
+        {
+            "user_id": 1,
+            "first_name": 1,
+            "last_name": 1,
+            "username": 1,
+            "premium_expiry": 1,
+            "premium_status": 1,
+            "premium_plan_name": 1,
+        }
+    ).sort("premium_expiry", 1)
+
+    now = datetime.now(timezone.utc)
+
+    async for user in cursor:
+        uid = user.get("user_id", "")
+        first = (user.get("first_name") or "").strip()
+        last = (user.get("last_name") or "").strip()
+        name = " ".join(x for x in [first, last] if x).strip() or "Unknown"
+        username = user.get("username")
+        display_name = f"{name} (@{username})" if username else name
+
+        expiry = utc_aware(user.get("premium_expiry"))
+        if expiry:
+            expiry_text = expiry.strftime("%d-%m-%Y %H:%M UTC")
+            status = "ACTIVE" if user.get("premium_status") and expiry > now else "EXPIRED"
+        else:
+            expiry_text = "N/A"
+            status = "UNKNOWN"
+
+        plan = user.get("premium_plan_name") or user.get("premium_plan") or "Premium"
+
+        rows.append(
+            f"👤 Name: {display_name}\n"
+            f"🆔 ID: {uid}\n"
+            f"📦 Plan: {plan}\n"
+            f"📅 Expire: {expiry_text}\n"
+            f"📌 Status: {status}\n"
+        )
+
+    if not rows:
+        return await update.message.reply_text("📋 Koi premium user data nahi mila.")
+
+    header = f"💎 PREMIUM USERS — {len(rows)}\n\n"
+    text = header + "\n".join(rows)
+
+    # Telegram message limit is 4096 chars. Keep a safe margin.
+    if len(text) <= 3500:
+        await update.message.reply_text(text)
+        return
+
+    path = Path("/tmp/premium.txt")
+    path.write_text(text, encoding="utf-8")
+    with path.open("rb") as f:
+        await update.message.reply_document(
+            document=f,
+            filename="premium.txt",
+            caption=f"💎 Premium users: {len(rows)}\n📄 Complete details attached."
+        )
