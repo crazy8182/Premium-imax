@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.config import BOT_USERNAME
 from bot.db import get_user, upsert_user, find_referrer
@@ -23,8 +23,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_menu()
     )
 
-async def help_cmd(update, context):
-    await update.message.reply_text("Use /plans to buy Premium.\nUse /status to check membership.\nUse /referral to get your referral link.")
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "💼 Contact Support",
+                callback_data="contact_support",
+                style="primary"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🏠 Main Menu",
+                callback_data="main_menu",
+                style="success"
+            )
+        ]
+    ]
+
+    await update.message.reply_text(
+        "🆘 <b>Support</b>\n\n"
+        "Contact our team using the button below.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
 
 async def referral(update, context):
     u=update.effective_user
