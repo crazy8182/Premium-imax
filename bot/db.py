@@ -68,3 +68,7 @@ async def set_offer_settings(plan_id, data):
 
 async def delete_offer_settings(plan_id):
     await offer_settings.delete_one({"plan_id": plan_id})
+
+
+def all_users():
+    return users.find({})
