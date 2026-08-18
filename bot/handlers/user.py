@@ -147,7 +147,15 @@ async def check(update, context):
 async def home(update, context):
     q=update.callback_query
     await q.answer()
-    await q.message.edit_text("🏠 Premium Membership",reply_markup=main_menu())
+    await update.message.reply_text(
+        f"👋 Welcome {u.first_name or 'User'}!\n\n"
+        "Help k liye uper ki video dekhein.\n\n"
+        "Premium lene ke liye pehle Buy Premium pe tap karein.\n\n"
+        "Agar payment already ho gaya hai, toh "
+        "Buy Premium me category select karke "
+        "Paid button pe tap karke apna payment proof submit karein.",
+        reply_markup=main_menu()
+    )
 
 async def help_cb(update, context):
     q = update.callback_query
