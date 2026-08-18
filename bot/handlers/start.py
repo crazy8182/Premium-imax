@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot.config import BOT_USERNAME, ADMIN_IDS
+from bot.config import BOT_USERNAME
 from bot.db import get_user, upsert_user, find_referrer
 from bot.keyboards import main_menu, offers_menu
 from bot.config import PLANS, offer_details
@@ -19,19 +19,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await upsert_user(u.id,**data)
     else:
         await upsert_user(u.id,**data)
-    tutorial_video = "BAACAgUAAxkBAAPsaoRf7uVAxVZOnPgffz27gnuYpCwAAqAfAAKNGiBUhUmOHWriiWE9BA"
-    await update.message.reply_video(
-        video=tutorial_video,
-        caption=(
-            f"👋 Welcome {u.first_name or 'User'}!\n\n"
-            "Help k liye uper ki video dekhein.\n\n"
-            "Premium lene ke liye pehle <b>Check Plans</b> pe tap karein.\n\n"
-            "Agar payment already ho gaya hai, toh "
-            "<b>Buy Premium</b> me category select karke "
-            "<b>Paid</b> button pe tap karke apna payment proof submit karein."
-        ),
-        reply_markup=main_menu(),
-        parse_mode="HTML"
+    await update.message.reply_text(
+        f"👋 Welcome {u.first_name or 'User'}!\n\n⭐ Premium Membership\nChoose an option below:",
+        reply_markup=main_menu()
     )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -40,7 +30,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "💼 Contact Support",
-                url=f'https://t.me/akImaxSupport_Bot',
+                url=f'https://t.me/imaxsubsciptionbot',
                 style="primary"
             )
         ]
@@ -97,17 +87,3 @@ async def offers(update, context):
         text = "🔥 <b>Current Offers</b>\n\n" + "\n\n".join(active)
 
     await update.message.reply_text(text, reply_markup=offers_menu(), parse_mode="HTML")
-
-
-async def get_video_id(update, context):
-    """TEMPORARY: Send a video to the bot to get its Telegram file_id.
-    Remove this function and its MessageHandler from bot/bot.py after copying the ID.
-    """
-    if update.effective_user.id not in ADMIN_IDS:
-        return
-    if update.message and update.message.video:
-        file_id = update.message.video.file_id
-        await update.message.reply_text(
-            f"🎥 <b>Video File ID:</b>\n\n<code>{file_id}</code>",
-            parse_mode="HTML"
-        )
