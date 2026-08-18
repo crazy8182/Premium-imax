@@ -30,7 +30,20 @@ async def approve(update, context):
     user=await get_user(pmt["user_id"])
     old=utc_aware(user.get("premium_expiry")) if user else None
     expiry=(old+timedelta(days=offer_days)) if old and old>now else now+timedelta(days=offer_days)
-    await upsert_user(pmt["user_id"],premium_status=True,premium_plan=pmt["plan_id"],premium_plan_name=plan["name"],premium_start=now,premium_expiry=expiry,joined_group=False,last_reminder=None,approved_payment_id=pid)
+    await upsert_user(
+        pmt["user_id"],
+        premium_status=True,
+        premium_plan=pmt["plan_id"],
+        premium_plan_name=plan["name"],
+        premium_start=now,
+        premium_expiry=expiry,
+        joined_group=False,
+        last_reminder=None,
+        approved_payment_id=pid,
+        expired_offer_until=None,
+        expired_offer_last_reminder=None,
+        expired_offer_reminders_sent=0,
+    )
     if pmt.get("discount_credit_used"):
         await users.update_one({"user_id":pmt["user_id"],"discount_credits":{"$gt":0}},{"$inc":{"discount_credits":-1}})
     referrer=await award_referral(pmt["user_id"])
