@@ -19,9 +19,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await upsert_user(u.id,**data)
     else:
         await upsert_user(u.id,**data)
-    await update.message.reply_text(
-        f"👋 Welcome {u.first_name or 'User'}!\n\n⭐ Premium Membership\nChoose an option below:",
-        reply_markup=main_menu()
+    tutorial_video = "YOUR_TUTORIAL_VIDEO_FILE_ID"
+    await update.message.reply_video(
+        video=tutorial_video,
+        caption=(
+            "👋 <b>Welcome, IMAX SUPPORT!</b>\n\n"
+            "Help k liye uper ki video dekhein.\n\n"
+            "Premium lene ke liye pehle <b>Check Plans</b> pe tap karein.\n\n"
+            "Agar payment already ho gaya hai, toh "
+            "<b>Buy Premium</b> me category select karke "
+            "<b>Paid</b> button pe tap karke apna payment proof submit karein."
+        ),
+        reply_markup=main_menu(),
+        parse_mode="HTML"
     )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
