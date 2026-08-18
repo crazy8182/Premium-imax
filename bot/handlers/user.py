@@ -150,9 +150,25 @@ async def home(update, context):
     await q.message.edit_text("🏠 Premium Membership",reply_markup=main_menu())
 
 async def help_cb(update, context):
-    q=update.callback_query
+    q = update.callback_query
     await q.answer()
-    await q.message.reply_text("Use BUY PREMIUM to purchase. Use /referral for your personal referral link.")
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "💼 Contact Support",
+                url="https://t.me/akImaxSupport_Bot",
+                style="primary"
+            )
+        ]
+    ]
+
+    await q.message.reply_text(
+        "🆘 <b>Support</b>\n\n"
+        "Contact our team using the button below.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
 
 async def referral_cb(update, context):
     q=update.callback_query
