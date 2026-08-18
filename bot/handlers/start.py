@@ -2,7 +2,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.config import BOT_USERNAME
 from bot.db import get_user, upsert_user, find_referrer
-from bot.keyboards import main_menu
+from bot.keyboards import main_menu, offers_menu
+from bot.config import PLANS, offer_details
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u=update.effective_user
@@ -57,3 +58,32 @@ async def referral(update, context):
         f"🎟️ 5% discount credits: {user.get('discount_credits',0)}\n\n"
         "Each successful referred premium purchase gives you one 5% discount on your next purchase."
     )
+
+
+async def offers(update, context):
+    active = []
+    for p in PLANS:
+        offer = offer_details(p)
+        if offer["active"]:
+            if offer["type"] == "extra_days":
+                detail = f"➕ +{offer["value"]} Extra Days"
+            else:
+                detail = f"💸 {offer["value"]}% OFF"
+            label = f" — {offer["label"]}" if offer["label"] else ""
+            active.append(
+                f"🔥 <b>{p["name"]}</b>{label}\n"
+                f"{detail}\n"
+                f"⏳ Validity: {offer["days"]} days\n"
+                f"💰 Price: ₹{offer["price"]}"
+            )
+
+    if not active:
+        text = (
+            "🔥 <b>Current Offers</b>\n\n"
+            "😔 Koi active offers nahi hai abhi filhaal!\n\n"
+            "New offer aane pe aapko notification mil jayega."
+        )
+    else:
+        text = "🔥 <b>Current Offers</b>\n\n" + "\n\n".join(active)
+
+    await update.message.reply_text(text, reply_markup=offers_menu(), parse_mode="HTML")
