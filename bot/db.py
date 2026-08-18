@@ -33,10 +33,10 @@ async def get_payment(payment_id):
 async def update_payment(payment_id, **data):
     await payments.update_one({"payment_id": payment_id}, {"$set": data})
 
-async def active_users():
+def active_users():
     return users.find({"premium_status": True})
 
-async def expired_users():
+def expired_users():
     from datetime import datetime, timezone
     return users.find({
         "premium_status": True,
