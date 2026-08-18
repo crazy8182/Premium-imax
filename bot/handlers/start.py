@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot.config import BOT_USERNAME
+from bot.config import BOT_USERNAME, ADMIN_IDS
 from bot.db import get_user, upsert_user, find_referrer
 from bot.keyboards import main_menu, offers_menu
 from bot.config import PLANS, offer_details
@@ -97,3 +97,4 @@ async def offers(update, context):
         text = "🔥 <b>Current Offers</b>\n\n" + "\n\n".join(active)
 
     await update.message.reply_text(text, reply_markup=offers_menu(), parse_mode="HTML")
+\n\nasync def get_video_id(update, context):\n    """TEMPORARY: Send a video to the bot to get its Telegram file_id.\n    Remove this function and its MessageHandler from bot/bot.py after copying the ID.\n    """\n    if update.effective_user.id not in ADMIN_IDS:\n        return\n    if update.message and update.message.video:\n        file_id = update.message.video.file_id\n        await update.message.reply_text(\n            f"🎥 <b>Video File ID:</b>\\n\\n<code>{file_id}</code>",\n            parse_mode="HTML"\n        )\n
