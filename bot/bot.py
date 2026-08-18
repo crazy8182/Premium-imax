@@ -1,7 +1,7 @@
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers.start import start, help_cmd, referral, offers
 from bot.handlers.user import plans, plans_cmd, plan, paid, cancel_upload, screenshot, status, status_cb, check, home, help_cb, referral_cb, offers_cb, text_log
-from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, remove_cmd, offer_cmd, offer_manager_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input
+from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, remove_cmd, offer_cmd, offer_manager_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium
 
 def register_handlers(app):
     app.add_handler(CommandHandler("start", start))
@@ -14,6 +14,7 @@ def register_handlers(app):
     app.add_handler(CommandHandler("pending", pending))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("premium", manual_premium))
+    app.add_handler(CommandHandler("check_premium", check_premium))
     app.add_handler(CommandHandler("remove", remove_cmd))
     app.add_handler(CommandHandler("offer", offer_cmd))
 
