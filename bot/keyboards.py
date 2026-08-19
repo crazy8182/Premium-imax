@@ -105,6 +105,13 @@ def join_menu(link):
     ])
 
 
+def join_menue(link):
+    return InlineKeyboardMarkup([
+        [btn("🤖 SUPPORT", callback_data="help", style=SUCCESS)],
+        [btn("🏠 MAIN MENU", callback_data="home", style=PRIMARY)]
+    ])
+    
+
 def offers_menu():
     return InlineKeyboardMarkup([
         [btn("⭐ BUY PREMIUM", callback_data="plans", style=SUCCESS)],
