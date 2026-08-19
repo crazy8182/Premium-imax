@@ -38,6 +38,6 @@ def register_handlers(app):
     app.add_handler(CallbackQueryHandler(offer_disable_cb, "^offer_disable:"))
     app.add_handler(CallbackQueryHandler(offer_list_cb, "^offer_list$"))
 
-    app.add_handler(MessageHandler(filters.PHOTO, screenshot))
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, screenshot))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, offer_input), group=0)
     app.add_handler(MessageHandler(filters.ALL, text_log), group=99)

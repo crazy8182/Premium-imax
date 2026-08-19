@@ -15,6 +15,7 @@ async def init_db():
     await users.create_index("premium_expiry")
     await payments.create_index("payment_id", unique=True)
     await payments.create_index("status")
+    await payments.create_index([("user_id", 1), ("status", 1)])
     await offer_settings.create_index("plan_id", unique=True)
     print("MongoDB connected successfully.", flush=True)
 
