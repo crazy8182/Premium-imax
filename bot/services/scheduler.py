@@ -103,7 +103,7 @@ async def process(bot):
                 uid,
                 "⏰ Reminder: your premium is active, "
                 "but you have not joined the Premium Group yet.",
-                reply_markup=join_menu(link)
+                reply_markup=join_menue(link)
             )
 
             await upsert_user(uid, last_reminder=now)
