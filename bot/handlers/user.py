@@ -14,7 +14,7 @@ from bot.config import (
     offer_details,
     EXPIRED_DISCOUNT_PERCENT,
 )
-from bot.db import get_user, upsert_user, create_payment
+from bot.db import get_user, upsert_user, create_payment, payments
 from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
 from bot.services.premium import is_member, make_invite
 
@@ -231,16 +231,56 @@ async def cancel_upload(update, context):
     )
 
 
+def payment_pending_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 MAIN MENU", callback_data="home", style="primary")]
+    ])
+
+
+async def pending_payment_for_user(uid):
+    return await payments.find_one(
+        {"user_id": uid, "status": "pending"},
+        sort=[("created_at", 1)]
+    )
+
+
+async def send_pending_message(message, plan_name=None):
+    plan_title = f" {plan_name}" if plan_name else ""
+    await message.reply_text(
+        f"⏳ Movie Premium{plan_title} ke liye request pehle se pending hai.\n\n"
+        "Admin approval ka wait karein — bar bar screenshot bhejne ki zarurat nahi.",
+        reply_markup=payment_pending_menu()
+    )
+
+
+async def send_direct_screenshot_message(message):
+    await message.reply_text(
+        "⚠️ Screenshot upload karne se pehle Check Plans me category select karein.\n\n"
+        "Flow: Buy Plans → category choose karein → plan ke Paid button pe tap karein → screenshot upload karein.",
+        reply_markup=payment_pending_menu()
+    )
+
+
 async def screenshot(update, context):
     message = update.message
     if not message or (not message.photo and not message.document):
         return
 
     uid = update.effective_user.id
+
+    # Never create multiple pending requests for the same user.
+    existing = await pending_payment_for_user(uid)
+    if existing:
+        existing_plan = existing.get("plan_name")
+        await send_pending_message(message, existing_plan)
+        return
+
     user = await get_user(uid)
     pid = user.get("pending_plan") if user else None
 
+    # User sent a screenshot without selecting a plan first.
     if pid not in PLAN_MAP:
+        await send_direct_screenshot_message(message)
         return
 
     p = PLAN_MAP[pid]
@@ -258,11 +298,14 @@ async def screenshot(update, context):
         proof_file_id = message.document.file_id
 
     payment_id = uuid.uuid4().hex[:12].upper()
+    created_at = datetime.now(timezone.utc)
 
     await create_payment({
         "payment_id": payment_id,
         "user_id": uid,
         "username": update.effective_user.username,
+        "first_name": update.effective_user.first_name,
+        "last_name": update.effective_user.last_name,
         "plan_id": pid,
         "plan_name": p["name"],
         "original_amount": p["price"],
@@ -282,7 +325,7 @@ async def screenshot(update, context):
         "status": "pending",
         "proof_type": proof_type,
         "screenshot_file_id": proof_file_id,
-        "created_at": datetime.now(timezone.utc)
+        "created_at": created_at
     })
 
     await upsert_user(uid, pending_plan=None)
@@ -295,18 +338,26 @@ async def screenshot(update, context):
         "None"
     )
 
+    full_name = " ".join(
+        x for x in [update.effective_user.first_name, update.effective_user.last_name]
+        if x
+    ).strip() or "Unknown"
+    username = f"@{update.effective_user.username}" if update.effective_user.username else "No username"
+
     caption = (
         "💳 NEW PREMIUM PAYMENT\n\n"
-        f"🆔 `{payment_id}`\n"
-        f"👤 {update.effective_user.mention_html()}\n"
+        f"🆔 Payment ID: `{payment_id}`\n"
+        f"👤 Name: {full_name}\n"
+        f"🔗 Username: {username}\n"
         f"🆔 User ID: `{uid}`\n"
-        f"📦 {p['name']}\n"
+        f"📦 Plan: {p['name']}\n"
         f"💰 Original: ₹{p['price']}\n"
         f"🎁 Discount: {discount_label}\n"
         f"⏳ Days: {offer['days']}\n"
         f"💵 Expected: ₹{final}\n"
-        f"📎 Proof type: {proof_type}\n\n"
-        "Approve or cancel:"
+        f"📎 Proof type: {proof_type}\n"
+        f"🕐 Submitted: {created_at.strftime('%d-%m-%Y %H:%M UTC')}\n\n"
+        "Approve or reject using the buttons below."
     )
 
     from bot.keyboards import admin_menu
@@ -332,9 +383,14 @@ async def screenshot(update, context):
         except Exception as e:
             print(f"Admin notify error: {e}", flush=True)
 
-    await update.message.reply_text(
-        "✅ Payment screenshot received.\n"
-        "Admin verification is pending."
+    plan_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})"
+    await message.reply_text(
+        "✅ Movie Premium request submitted!\n\n"
+        f"📋 Selected Plan: {plan_line}\n\n"
+        "Admin aapki payment verify karke jaldi approval denge.\n"
+        "🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n"
+        "⏱ Usually 20 minutes ke andar approval mil jata hai.",
+        reply_markup=payment_pending_menu()
     )
 
 

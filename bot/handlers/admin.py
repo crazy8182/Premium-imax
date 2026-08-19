@@ -77,13 +77,83 @@ async def admin_cmd(update, context):
     await update.message.reply_text("⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/check_premium\n/remove USER_ID\n/offer — Manage Premium Offers")
 
 async def pending(update, context):
-    if not admin_only(update.effective_user.id): return
+    if not admin_only(update.effective_user.id):
+        return
+
     from bot.keyboards import admin_menu
-    count=0
-    async for p in payments.find({"status":"pending"}).sort("created_at",1):
-        count+=1
-        await update.message.reply_text(f"💳 {p['payment_id']}\n👤 {p['user_id']}\n📦 {p['plan_name']}\n💰 ₹{p['amount']}",reply_markup=admin_menu(p["payment_id"]))
-    if not count: await update.message.reply_text("No pending payments.")
+
+    count = 0
+    async for p in payments.find({"status": "pending"}).sort("created_at", 1):
+        count += 1
+        uid = p.get("user_id")
+        user = await get_user(uid) or {}
+
+        first = p.get("first_name") or user.get("first_name") or ""
+        last = p.get("last_name") or user.get("last_name") or ""
+        name = " ".join(x for x in [first, last] if x).strip() or "Unknown"
+        username = p.get("username") or user.get("username")
+        username_text = f"@{username}" if username else "No username"
+
+        details = (
+            "💳 <b>PENDING PREMIUM PAYMENT</b>\n\n"
+            f"🆔 Payment ID: <code>{p.get('payment_id')}</code>\n"
+            f"👤 Name: {name}\n"
+            f"🔗 Username: {username_text}\n"
+            f"🆔 User ID: <code>{uid}</code>\n"
+            f"📦 Plan: {p.get('plan_name', 'Premium')}\n"
+            f"💰 Amount: ₹{p.get('amount', 0)}\n"
+            f"⏳ Days: {p.get('offer_days', 0)}\n"
+            f"📎 Proof: {p.get('proof_type', 'unknown')}\n"
+        )
+
+        if p.get("created_at"):
+            try:
+                created = utc_aware(p["created_at"])
+                details += f"🕐 Submitted: {created.strftime('%d-%m-%Y %H:%M UTC')}\n"
+            except Exception:
+                pass
+
+        try:
+            proof_id = p.get("screenshot_file_id")
+            if proof_id:
+                if p.get("proof_type") == "photo":
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=proof_id,
+                        caption=details,
+                        parse_mode="HTML",
+                        reply_markup=admin_menu(p["payment_id"])
+                    )
+                else:
+                    await context.bot.send_document(
+                        chat_id=update.effective_chat.id,
+                        document=proof_id,
+                        caption=details,
+                        parse_mode="HTML",
+                        reply_markup=admin_menu(p["payment_id"])
+                    )
+            else:
+                await update.message.reply_text(
+                    details,
+                    parse_mode="HTML",
+                    reply_markup=admin_menu(p["payment_id"])
+                )
+        except Exception as e:
+            print(f"Pending proof send error: {e}", flush=True)
+            await update.message.reply_text(
+                details,
+                parse_mode="HTML",
+                reply_markup=admin_menu(p["payment_id"])
+            )
+
+    if not count:
+        await update.message.reply_text("✅ No pending premium payments.")
+    else:
+        await update.message.reply_text(
+            f"📋 Total pending requests: <b>{count}</b>",
+            parse_mode="HTML"
+        )
+
 
 async def stats(update, context):
     if not admin_only(update.effective_user.id): return
