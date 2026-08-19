@@ -102,7 +102,8 @@ async def process(bot):
             await bot.send_message(
                 uid,
                 "⏰ Reminder: your premium is active, "
-                "but you have not joined the Premium Group yet.",
+                "but you have not joined the Premium Group yet.\n\n"
+                "Contact SUPPORT TEAM Using Below Button.",
                 reply_markup=join_menue(link)
             )
 
