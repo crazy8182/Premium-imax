@@ -8,9 +8,8 @@ from bot.config import (
     EXPIRED_DISCOUNT_PERCENT,
     PLAN_MAP,
 )
-from bot.db import expired_users, active_users, upsert_user
+from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium
 from bot.services.premium import is_member, remove_member, make_invite
-from bot.services.auto_filter import sync_premium, remove_premium
 
 
 def utc_datetime(value):
@@ -40,14 +39,11 @@ async def process(bot):
         except Exception as e:
             print(f"Remove member error for {uid}: {e}", flush=True)
 
-        # Remove the same user from Auto Filter premium access.
-        try:
-            await remove_premium(uid)
-        except Exception as e:
-            print(f"Auto Filter premium removal error for {uid}: {e}", flush=True)
-
         # Start a fresh 3-day expired-user discount window.
         offer_until = now + timedelta(days=EXPIRED_OFFER_DAYS)
+
+        # Keep Auto Filter Bot premium collection in sync after expiry.
+        await sync_auto_filter_premium(uid, None)
 
         await upsert_user(
             uid,
