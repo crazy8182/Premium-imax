@@ -35,6 +35,39 @@ async def init_db():
     await payments.create_index("status")
     await payments.create_index([("user_id", 1), ("status", 1)])
     await offer_settings.create_index("plan_id", unique=True)
+
+    # Import existing Premium users from the Auto Filter Bot.
+    # The Auto Filter Bot already stores premium users in the shared `uersz`
+    # collection as: {id: user_id, expiry_time: datetime}.  This is a
+    # one-way compatibility import so old Auto Filter premium memberships
+    # also appear in Premium IMAX without changing the Auto Filter Bot.
+    now = datetime.now(timezone.utc)
+    async for af_user in auto_filter_premium.find({
+        "id": {"$type": "number"},
+        "expiry_time": {"$exists": True, "$ne": None, "$gt": now},
+    }, {"id": 1, "expiry_time": 1}):
+        uid = int(af_user["id"])
+        expiry = af_user["expiry_time"]
+        if isinstance(expiry, datetime) and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        await users.update_one(
+            {"user_id": uid},
+            {
+                "$set": {
+                    "user_id": uid,
+                    "premium_status": True,
+                    "premium_expiry": expiry,
+                    "premium_plan": "autofilter",
+                    "premium_plan_name": "Auto Filter Premium",
+                },
+                "$setOnInsert": {
+                    "premium_start": now,
+                    "joined_group": False,
+                },
+            },
+            upsert=True,
+        )
+
     print("MongoDB connected successfully.", flush=True)
 
 async def get_user(uid):
