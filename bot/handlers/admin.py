@@ -3,9 +3,8 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
-from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral
+from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium
 from bot.services.premium import make_invite, remove_member
-from bot.services.auto_filter import sync_premium, remove_premium
 
 def admin_only(uid): return uid in ADMIN_IDS
 
@@ -46,8 +45,8 @@ async def approve(update, context):
         expired_offer_last_reminder=None,
         expired_offer_reminders_sent=0,
     )
-    # Keep Auto Filter Bot premium in sync with the same expiry.
-    await sync_premium(pmt["user_id"], expiry)
+    # Save the same premium record used by Auto Filter Bot.
+    await sync_auto_filter_premium(pmt["user_id"], expiry)
     if pmt.get("discount_credit_used"):
         await users.update_one({"user_id":pmt["user_id"],"discount_credits":{"$gt":0}},{"$inc":{"discount_credits":-1}})
     referrer=await award_referral(pmt["user_id"])
@@ -174,7 +173,8 @@ async def manual_premium(update, context):
     old=utc_aware(user.get("premium_expiry")) if user else None
     expiry=(old+timedelta(days=days)) if old and old>now else now+timedelta(days=days)
     await upsert_user(uid,premium_status=True,premium_plan="manual",premium_plan_name=f"Manual {days} Days",premium_start=now,premium_expiry=expiry)
-    await sync_premium(uid, expiry)
+    # Save the same premium record used by Auto Filter Bot.
+    await sync_auto_filter_premium(uid, expiry)
     link=await make_invite(context.bot,uid)
     await context.bot.send_message(uid,f"🟢 Premium activated until {expiry}",reply_markup=__import__("bot.keyboards",fromlist=["join_menu"]).join_menu(link))
     await update.message.reply_text("Done.")
@@ -184,8 +184,9 @@ async def remove_cmd(update, context):
     if len(context.args)!=1: return await update.message.reply_text("/remove USER_ID")
     uid=int(context.args[0])
     await remove_member(context.bot,uid)
-    await remove_premium(uid)
     await upsert_user(uid,premium_status=False,joined_group=False)
+    # Remove premium from the Auto Filter Bot's existing premium collection too.
+    await sync_auto_filter_premium(uid, None)
     await update.message.reply_text("Removed and premium disabled.")
 
 # ---------------- ADMIN OFFER MANAGER ----------------
