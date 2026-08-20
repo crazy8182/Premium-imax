@@ -97,7 +97,7 @@ async def process(bot):
         try:
             link = await make_invite(bot, uid)
 
-            from bot.keyboards import join_menu
+            from bot.keyboards import join_menue
 
             await bot.send_message(
                 uid,
