@@ -20,15 +20,6 @@ REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 INVITE_VALID_HOURS = int(os.getenv("INVITE_VALID_HOURS", "24"))
 CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
 
-# Auto Filter Bot premium sync.
-# IMPORTANT: both bots use the SAME MONGO_URI and DB_NAME.
-# Auto Filter premium records are stored in the `uersz` collection with
-# fields: id and expiry_time.
-AUTO_FILTER_SYNC_ENABLED = os.getenv("AUTO_FILTER_SYNC_ENABLED", "True").strip().lower() in {
-    "true", "1", "yes", "on"
-}
-AUTO_FILTER_COLLECTION = os.getenv("AUTO_FILTER_COLLECTION", "uersz").strip() or "uersz"
-
 # Special offer shown automatically for 3 days after premium expiry.
 EXPIRED_OFFER_DAYS = int(os.getenv("EXPIRED_OFFER_DAYS", "3"))
 EXPIRED_DISCOUNT_PERCENT = int(os.getenv("EXPIRED_DISCOUNT_PERCENT", "10"))

@@ -8,6 +8,10 @@ users = db.users
 payments = db.payments
 offer_settings = db.offer_settings
 
+# Same premium collection used by the Auto Filter Bot.
+# IMPORTANT: This bot only writes to it; the Auto Filter Bot code is unchanged.
+auto_filter_premium = db.uersz
+
 async def init_db():
     await client.admin.command("ping")
     await users.create_index("user_id", unique=True)
@@ -73,3 +77,16 @@ async def delete_offer_settings(plan_id):
 
 def all_users():
     return users.find({})
+
+
+async def sync_auto_filter_premium(uid, expiry):
+    """Sync Premium IMAX premium data into the Auto Filter Bot's existing uersz collection.
+
+    The Auto Filter Bot expects exactly these fields for premium access:
+      {"id": user_id, "expiry_time": datetime}
+    """
+    await auto_filter_premium.update_one(
+        {"id": int(uid)},
+        {"$set": {"id": int(uid), "expiry_time": expiry}},
+        upsert=True,
+    )
