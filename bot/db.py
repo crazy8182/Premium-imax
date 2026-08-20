@@ -14,7 +14,21 @@ auto_filter_premium = db.uersz
 
 async def init_db():
     await client.admin.command("ping")
-    await users.create_index("user_id", unique=True)
+
+    # Existing shared MongoDB databases can contain old user documents
+    # without a user_id field. A normal unique index treats those missing
+    # values as null and fails with E11000. Keep the index unique for real
+    # Telegram numeric IDs while ignoring legacy documents without user_id.
+    try:
+        await users.drop_index("user_id_1")
+    except Exception:
+        pass
+    await users.create_index(
+        "user_id",
+        unique=True,
+        partialFilterExpression={"user_id": {"$type": "number"}},
+        name="user_id_1",
+    )
     await users.create_index("referral_code", unique=True, sparse=True)
     await users.create_index("premium_expiry")
     await payments.create_index("payment_id", unique=True)
