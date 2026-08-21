@@ -106,7 +106,7 @@ async def plan(update, context):
     text = f"⭐ {p['name']} Premium\n\n⏳ Validity: {offer['days']} days\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot as photo or document."
     path = Path(PAYMENT_QR_PATH)
     if path.exists():
-        await q.message.reply_photo(photo=str(path), caption=bold_small_caps(text), parse_mode='HTML', reply_markup=payment_menu(pid))
+        await q.message.reply_photo(photo=str(path), caption=bold(text), parse_mode='HTML', reply_markup=payment_menu(pid))
     else:
         await safe_edit_message(q.message, text, reply_markup=payment_menu(pid))
 
