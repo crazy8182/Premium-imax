@@ -1,6 +1,6 @@
 from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from bot.handlers.start import start, help_cmd, referral, offers
-from bot.handlers.user import plans, plans_cmd, plan, paid, cancel_upload, screenshot, status, status_cb, check, home, help_cb, referral_cb, offers_cb, text_log
+from bot.handlers.user import plans, plans_cmd, plan, paid, cancel_upload, screenshot, status, status_cb, check, home, help_cb, referral_cb, offers_cb
 from bot.handlers.broadcast import broadcast
 from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, remove_cmd, offer_cmd, offer_manager_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium
 
@@ -40,4 +40,3 @@ def register_handlers(app):
 
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, screenshot))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, offer_input), group=0)
-    app.add_handler(MessageHandler(filters.ALL, text_log), group=99)
