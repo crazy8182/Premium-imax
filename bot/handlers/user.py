@@ -51,7 +51,13 @@ async def plans(update, context):
         text = f'🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:'
     else:
         text = '⭐ Choose your Premium Plan:\n\n🎁 5% discount available.' if credits else '⭐ Choose your Premium Plan:'
-    await q.edit_message_text(text, reply_markup=plans_menu(credits, expired=expired))
+    formatted = bold_small_caps(text)
+    if q.message and q.message.text is not None:
+        await q.edit_message_text(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
+    elif q.message and q.message.caption is not None:
+        await q.message.edit_caption(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
+    else:
+        await q.message.reply_text(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
 
 async def plans_cmd(update, context):
     user = await get_user(update.effective_user.id)
