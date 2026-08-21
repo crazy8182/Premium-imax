@@ -6,6 +6,7 @@ from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
 from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium
 from bot.services.premium import make_invite, remove_member
 
+from bot.services.formatting import bold_small_caps
 def admin_only(uid): return uid in ADMIN_IDS
 
 def utc_aware(dt):
@@ -122,7 +123,7 @@ async def pending(update, context):
                     await context.bot.send_photo(
                         chat_id=update.effective_chat.id,
                         photo=proof_id,
-                        caption=details,
+                        caption=bold_small_caps(details),
                         parse_mode="HTML",
                         reply_markup=admin_menu(p["payment_id"])
                     )
@@ -130,7 +131,7 @@ async def pending(update, context):
                     await context.bot.send_document(
                         chat_id=update.effective_chat.id,
                         document=proof_id,
-                        caption=details,
+                        caption=bold_small_caps(details),
                         parse_mode="HTML",
                         reply_markup=admin_menu(p["payment_id"])
                     )
@@ -385,5 +386,6 @@ async def check_premium(update, context):
         await update.message.reply_document(
             document=f,
             filename="premium.txt",
-            caption=f"💎 Premium users: {len(rows)}\n📄 Complete details attached."
+            caption=bold_small_caps(f"💎 Premium users: {len(rows)}\n📄 Complete details attached."),
+            parse_mode="HTML"
         )

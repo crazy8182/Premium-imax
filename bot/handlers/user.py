@@ -13,10 +13,12 @@ from bot.config import (
     ADMIN_IDS,
     offer_details,
     EXPIRED_DISCOUNT_PERCENT,
+    PAYMENT_PROOF_CHANNEL_ID,
 )
 from bot.db import get_user, upsert_user, create_payment, payments
 from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
 from bot.services.premium import is_member, make_invite
+from bot.services.formatting import bold_small_caps
 
 
 def expired_offer_active(user, now=None):
@@ -161,7 +163,8 @@ async def plan(update, context):
     if path.exists():
         await q.message.reply_photo(
             photo=str(path),
-            caption=text,
+            caption=bold_small_caps(text),
+            parse_mode="HTML",
             reply_markup=payment_menu(pid)
         )
     else:
@@ -261,12 +264,70 @@ async def send_direct_screenshot_message(message):
     )
 
 
+async def store_and_delete_proof(message, context, uid, payment_id=None):
+    """Back up the user's proof to the private channel, then delete the PM copy."""
+    if not PAYMENT_PROOF_CHANNEL_ID:
+        # Safety first: never delete the user's only copy if no backup channel is configured.
+        return False
+
+    try:
+        name = " ".join(
+            x for x in [message.from_user.first_name, message.from_user.last_name]
+            if x
+        ).strip() or "Unknown"
+        username = f"@{message.from_user.username}" if message.from_user.username else "No username"
+        proof_type = "PHOTO" if message.photo else "DOCUMENT"
+
+        backup_caption = (
+            f"🛡️ PAYMENT PROOF BACKUP\n\n"
+            f"🆔 USER ID: {uid}\n"
+            f"👤 NAME: {name}\n"
+            f"🔗 USERNAME: {username}\n"
+            f"📎 TYPE: {proof_type}\n"
+        )
+        if payment_id:
+            backup_caption += f"💳 PAYMENT ID: {payment_id}\n"
+        if message.caption:
+            backup_caption += f"\n📝 ORIGINAL CAPTION:\n{message.caption}"
+
+        # copy_message keeps the proof in the channel without exposing the user's PM as a forward.
+        await context.bot.copy_message(
+            chat_id=PAYMENT_PROOF_CHANNEL_ID,
+            from_chat_id=message.chat_id,
+            message_id=message.message_id,
+            caption=bold_small_caps(backup_caption),
+            parse_mode="HTML",
+        )
+
+        await message.delete()
+        return True
+    except Exception as e:
+        print(f"Payment proof backup/delete error: {e}", flush=True)
+        return False
+
+
 async def screenshot(update, context):
     message = update.message
     if not message or (not message.photo and not message.document):
         return
 
     uid = update.effective_user.id
+
+    # Back up the proof first, then remove the user's PM copy.
+    # If the backup channel is unavailable, the original message is kept for safety.
+    backup_ok = await store_and_delete_proof(message, context, uid)
+    if not backup_ok:
+        if PAYMENT_PROOF_CHANNEL_ID:
+            await message.reply_text(
+                "⚠️ Payment screenshot backup failed, so the screenshot was NOT deleted. "
+                "Please try again or contact support."
+            )
+        else:
+            await message.reply_text(
+                "⚠️ Payment proof backup channel is not configured. "
+                "Your screenshot was NOT deleted for safety."
+            )
+        return
 
     # Never create multiple pending requests for the same user.
     existing = await pending_payment_for_user(uid)
@@ -368,7 +429,7 @@ async def screenshot(update, context):
                 await context.bot.send_photo(
                     aid,
                     proof_file_id,
-                    caption=caption,
+                    caption=bold_small_caps(caption),
                     parse_mode="HTML",
                     reply_markup=admin_menu(payment_id)
                 )
@@ -376,7 +437,7 @@ async def screenshot(update, context):
                 await context.bot.send_document(
                     aid,
                     proof_file_id,
-                    caption=caption,
+                    caption=bold_small_caps(caption),
                     parse_mode="HTML",
                     reply_markup=admin_menu(payment_id)
                 )
@@ -384,8 +445,9 @@ async def screenshot(update, context):
             print(f"Admin notify error: {e}", flush=True)
 
     plan_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})"
-    await message.reply_text(
-        "✅ Movie Premium request submitted!\n\n"
+    await context.bot.send_message(
+        chat_id=uid,
+        text="✅ Movie Premium request submitted!\n\n"
         f"📋 Selected Plan: {plan_line}\n\n"
         "Admin aapki payment verify karke jaldi approval denge.\n"
         "🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n"
