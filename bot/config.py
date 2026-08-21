@@ -16,6 +16,10 @@ UPI_ID = os.getenv("UPI_ID", "")
 UPI_NAME = os.getenv("UPI_NAME", "")
 PAYMENT_QR_PATH = os.getenv("PAYMENT_QR_PATH", "assets/payment_qr.png")
 
+# Private channel used to keep a backup of every payment screenshot before it is deleted from the user PM.
+# Add the numeric channel ID (for example: -1001234567890). The bot must be an admin in that channel.
+PAYMENT_PROOF_CHANNEL_ID = int(os.getenv("PAYMENT_PROOF_CHANNEL_ID", "0"))
+
 REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 INVITE_VALID_HOURS = int(os.getenv("INVITE_VALID_HOURS", "24"))
 CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
