@@ -9,6 +9,27 @@ from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers
 from bot.services.premium import is_member, make_invite
 from bot.services.formatting import bold_small_caps
 
+
+
+async def safe_edit_message(message, text, reply_markup=None):
+    """Edit text/caption safely for both text and media messages."""
+    if not message:
+        return None
+    formatted = bold_small_caps(text)
+    try:
+        if message.text is not None:
+            return await message.edit_text(formatted, reply_markup=reply_markup, parse_mode='HTML')
+        if message.caption is not None:
+            return await message.edit_caption(formatted, reply_markup=reply_markup, parse_mode='HTML')
+        return await message.reply_text(formatted, reply_markup=reply_markup, parse_mode='HTML')
+    except Exception as exc:
+        # Telegram can reject edits when the message type/content changed between
+        # the callback and the edit. Fall back to a new message instead of logging
+        # an unhandled BadRequest and breaking the callback.
+        if 'There is no text in the message to edit' in str(exc):
+            return await message.reply_text(formatted, reply_markup=reply_markup, parse_mode='HTML')
+        raise
+
 def expired_offer_active(user, now=None):
     """True when the user's post-expiry discount window is still active."""
     if not user:
@@ -51,13 +72,7 @@ async def plans(update, context):
         text = f'🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:'
     else:
         text = '⭐ Choose your Premium Plan:\n\n🎁 5% discount available.' if credits else '⭐ Choose your Premium Plan:'
-    formatted = bold_small_caps(text)
-    if q.message and q.message.text is not None:
-        await q.edit_message_text(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
-    elif q.message and q.message.caption is not None:
-        await q.message.edit_caption(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
-    else:
-        await q.message.reply_text(formatted, reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
+    await safe_edit_message(q.message, text, reply_markup=plans_menu(credits, expired=expired))
 
 async def plans_cmd(update, context):
     user = await get_user(update.effective_user.id)
@@ -93,7 +108,7 @@ async def plan(update, context):
     if path.exists():
         await q.message.reply_photo(photo=str(path), caption=bold_small_caps(text), parse_mode='HTML', reply_markup=payment_menu(pid))
     else:
-        await q.edit_message_text(text, reply_markup=payment_menu(pid))
+        await safe_edit_message(q.message, text, reply_markup=payment_menu(pid))
 
 async def paid(update, context):
     q = update.callback_query
@@ -119,7 +134,7 @@ async def cancel_upload(update, context):
     q = update.callback_query
     await q.answer('Upload cancelled.')
     await upsert_user(q.from_user.id, pending_plan=None)
-    await q.message.edit_text(bold_small_caps(f"👋 Welcome {q.from_user.first_name or 'User'}!\n\n⭐ Premium Membership\nChoose an option below:"), reply_markup=main_menu(), parse_mode='HTML')
+    await safe_edit_message(q.message, f"👋 Welcome {q.from_user.first_name or 'User'}!\n\n⭐ Premium Membership\nChoose an option below:", reply_markup=main_menu())
 
 def payment_pending_menu():
     return InlineKeyboardMarkup([[InlineKeyboardButton('🏠 MAIN MENU', callback_data='home', style='primary')]])
@@ -230,14 +245,14 @@ async def check(update, context):
     await q.answer()
     if await is_member(context.bot, q.from_user.id):
         await upsert_user(q.from_user.id, joined_group=True)
-        await q.message.edit_text(bold_small_caps('🟢 You are a member of the Premium Group.'), parse_mode='HTML')
+        await safe_edit_message(q.message, '🟢 You are a member of the Premium Group.')
     else:
         await q.answer('🔴 You are not in the Premium Group.', show_alert=True)
 
 async def home(update, context):
     q = update.callback_query
     await q.answer()
-    await q.message.edit_text(bold_small_caps('👋 Welcome\n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein.'), reply_markup=main_menu(), parse_mode='HTML')
+    await safe_edit_message(q.message, '👋 Welcome\n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein.', reply_markup=main_menu())
 
 async def help_cb(update, context):
     q = update.callback_query
@@ -276,4 +291,4 @@ async def offers_cb(update, context):
         text = '🔥 <b>Current Offers</b>\n\n😔 Koi active offers nahi hai abhi filhaal!\n\nNew offer aane pe aapko notification mil jayega.'
     else:
         text = '🔥 <b>Current Offers</b>\n\n' + '\n\n'.join(active)
-    await q.message.edit_text(bold_small_caps(text), reply_markup=offers_menu(), parse_mode='HTML')
+    await safe_edit_message(q.message, text, reply_markup=offers_menu())
