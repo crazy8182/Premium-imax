@@ -270,7 +270,7 @@ async def referral_cb(update, context):
         user = await get_user(u.id)
     me = await context.bot.get_me()
     link = f"https://t.me/{me.username}?start=ref_{user.get('referral_code', u.id)}"
-    await q.message.reply_text(bold_small_caps(f"🎁 Referral Program\n\n🔗 {link}\n\n👥 Successful: {user.get('successful_referrals', 0)}\n🎟️ 5% credits: {user.get('discount_credits', 0)}"), parse_mode='HTML')
+    await q.message.reply_text(f"🎁 Referral Program\n\n🔗 {link}\n\n👥 Successful: {user.get('successful_referrals', 0)}\n🎟️ 5% credits: {user.get('discount_credits', 0)}", parse_mode='HTML')
 
 async def offers_cb(update, context):
     q = update.callback_query
