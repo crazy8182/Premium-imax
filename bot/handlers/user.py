@@ -103,7 +103,7 @@ async def plan(update, context):
         discount_text = f"🎁 Referral discount: 5%\n💰 Original: ₹{offer['price']}\n💵 Pay: ₹{final}\n\n"
     else:
         discount_text = f'💰 Pay: ₹{final}\n\n'
-    text = f"⭐ {p['name']} Premium\n\n⏳ Validity: {offer['days']} days\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot as photo or document."
+    text = f"<b>⭐ {p['name']} Premium\n\n⏳ Validity: {offer['days']} days\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot as photo or document.</b>"
     path = Path(PAYMENT_QR_PATH)
     if path.exists():
         await q.message.reply_photo(photo=str(path), caption=text, parse_mode='HTML', reply_markup=payment_menu(pid))
