@@ -74,3 +74,11 @@ Admin users can manage offers directly from Telegram with:
 `/offer`
 
 Choose a plan, then select **Extra Days**, **Discount %**, or **Disable Offer**. The bot asks for the value, offer label, and expiry in days. Use `0` for no expiry. Offers are stored in MongoDB, so they persist across Koyeb restarts/redeploys. When an offer is activated, users are notified and can use `/offers` to view active offers.
+
+
+## Payment proof backup & auto-delete
+
+Set `PAYMENT_PROOF_CHANNEL_ID` in `.env` to a private Telegram channel where the bot is an administrator.
+The bot will copy every payment proof to that channel first and only then delete the user's PM message. If the backup fails, the user's screenshot is kept and the bot will not delete it.
+
+The proof backup uses `copy_message`, so the user's PM is not exposed as a Telegram forward. The backup contains user/payment metadata and the original screenshot/document.
