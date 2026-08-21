@@ -272,10 +272,6 @@ async def referral_cb(update, context):
     link = f"https://t.me/{me.username}?start=ref_{user.get('referral_code', u.id)}"
     await q.message.reply_text(bold_small_caps(f"🎁 Referral Program\n\n🔗 {link}\n\n👥 Successful: {user.get('successful_referrals', 0)}\n🎟️ 5% credits: {user.get('discount_credits', 0)}"), parse_mode='HTML')
 
-async def text_log(update, context):
-    if update.effective_message:
-        print(f"UPDATE RECEIVED | user={(update.effective_user.id if update.effective_user else 'unknown')} | text={(update.effective_message.text or '')[:100]}", flush=True)
-
 async def offers_cb(update, context):
     q = update.callback_query
     await q.answer()
