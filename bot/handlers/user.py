@@ -4,7 +4,7 @@ from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID
-from bot.db import get_user, upsert_user, create_payment, payments
+from bot.db import get_user, upsert_user, create_payment, payments, remove_premium_invite_message
 from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
 from bot.services.premium import is_member, make_invite
 from bot.services.formatting import bold_small_caps
@@ -341,12 +341,27 @@ async def premium_group_member_update(update: Update, context: ContextTypes.DEFA
 
     # Telegram provides the exact invite link used for this join.
     invite = getattr(cm, "invite_link", None)
-    if invite and getattr(invite, "invite_link", None):
+    invite_url = getattr(invite, "invite_link", None) if invite else None
+
+    # Revoke the used invite so it cannot be reused.
+    if invite_url:
         try:
             await context.bot.delete_chat_invite_link(
                 chat_id=PREMIUM_GROUP_ID,
-                invite_link=invite.invite_link,
+                invite_link=invite_url,
             )
             print(f"Revoked used premium invite for user {uid}", flush=True)
         except Exception as e:
             print(f"Failed to revoke used premium invite for {uid}: {e}", flush=True)
+
+    # Delete the complete private message that contained the invite button/link.
+    try:
+        invite_message = await remove_premium_invite_message(uid, invite_url)
+        if invite_message:
+            await context.bot.delete_message(
+                chat_id=invite_message.get("chat_id", uid),
+                message_id=invite_message["message_id"],
+            )
+            print(f"Deleted premium invite message for user {uid}", flush=True)
+    except Exception as e:
+        print(f"Failed to delete premium invite message for {uid}: {e}", flush=True)

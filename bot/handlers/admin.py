@@ -3,7 +3,7 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
-from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium
+from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import make_invite, remove_member
 from bot.services.formatting import bold_small_caps
 
@@ -42,7 +42,8 @@ async def approve(update, context):
     await update_payment(pid, status='approved', approved_by=q.from_user.id, approved_at=now)
     try:
         link = await make_invite(context.bot, pmt['user_id'])
-        await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium Activated!\n\n📦 {plan['name']}\n⏳ Validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+        sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium Activated!\n\n📦 {plan['name']}\n⏳ Validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+        await save_premium_invite_message(pmt['user_id'], link, sent.message_id, sent.chat_id)
     except Exception as e:
         print(f'Activation message error: {e}', flush=True)
     if referrer:
@@ -138,7 +139,8 @@ async def manual_premium(update, context):
     await upsert_user(uid, premium_status=True, premium_plan='manual', premium_plan_name=f'Manual {days} Days', premium_start=now, premium_expiry=expiry)
     await sync_auto_filter_premium(uid, expiry)
     link = await make_invite(context.bot, uid)
-    await context.bot.send_message(uid, bold_small_caps(f'🟢 Premium activated until {expiry}'), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+    sent = await context.bot.send_message(uid, bold_small_caps(f'🟢 Premium activated until {expiry}'), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+    await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
     await update.message.reply_text(bold_small_caps('Done.'), parse_mode='HTML')
 
 async def remove_cmd(update, context):
