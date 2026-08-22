@@ -32,18 +32,27 @@ async def approve(update, context):
     offer_days = int(pmt.get('offer_days') or offer_details(plan)['days'])
     now = datetime.now(timezone.utc)
     user = await get_user(pmt['user_id'])
-    # A new approved plan starts a fresh validity period; do not add the new days to the old expiry.
-    expiry = now + timedelta(days=offer_days)
-    await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_start=now, premium_expiry=expiry, joined_group=False, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
+    purchase_type = pmt.get('purchase_type', 'new')
+    current_expiry = utc_aware(user.get('premium_expiry')) if user else None
+    is_extension = purchase_type == 'extension' and user and user.get('premium_status') and current_expiry and current_expiry > now
+    if is_extension:
+        expiry = current_expiry + timedelta(days=offer_days)
+        await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_expiry=expiry, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
+    else:
+        expiry = now + timedelta(days=offer_days)
+        await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_start=now, premium_expiry=expiry, joined_group=False, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
     await sync_auto_filter_premium(pmt['user_id'], expiry)
     if pmt.get('discount_credit_used'):
         await users.update_one({'user_id': pmt['user_id'], 'discount_credits': {'$gt': 0}}, {'$inc': {'discount_credits': -1}})
     referrer = await award_referral(pmt['user_id'])
     await update_payment(pid, status='approved', approved_by=q.from_user.id, approved_at=now)
     try:
-        link = await make_invite(context.bot, pmt['user_id'])
-        sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium Activated!\n\n📦 {plan['name']}\n⏳ Validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
-        await save_premium_invite_message(pmt['user_id'], link, sent.message_id, sent.chat_id)
+        if is_extension and user.get('joined_group'):
+            await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium Extended!\n\n📦 {plan['name']}\n➕ Added: {offer_days} days\n⏰ New Expiry: {expiry}"), parse_mode='HTML')
+        else:
+            link = await make_invite(context.bot, pmt['user_id'])
+            sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium {'Extended' if is_extension else 'Activated'}!\n\n📦 {plan['name']}\n⏳ Added validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+            await save_premium_invite_message(pmt['user_id'], link, sent.message_id, sent.chat_id)
     except Exception as e:
         print(f'Activation message error: {e}', flush=True)
     if referrer:
