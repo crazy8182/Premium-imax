@@ -87,7 +87,7 @@ def expired_offer_menu():
 def payment_menu(pid):
     return InlineKeyboardMarkup([
         [btn("🟢 I HAVE PAID", callback_data=f"paid:{pid}", style=SUCCESS)],
-        [btn("🔴 CANCEL", callback_data="plans", style=DANGER)]
+        [btn("🔴 CANCEL", callback_data="close_data", style=DANGER)]
     ])
 
 
