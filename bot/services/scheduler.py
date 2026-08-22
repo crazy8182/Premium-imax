@@ -2,7 +2,7 @@ from bot.services.formatting import bold_small_caps
 import asyncio
 from datetime import datetime, timedelta, timezone
 from bot.config import CHECK_INTERVAL_SECONDS, REMINDER_HOURS, EXPIRED_OFFER_DAYS, EXPIRED_DISCOUNT_PERCENT, PLAN_MAP
-from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium
+from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import is_member, remove_member, make_invite
 
 def utc_datetime(value):
@@ -51,7 +51,8 @@ async def process(bot):
         try:
             link = await make_invite(bot, uid)
             from bot.keyboards import join_menue
-            await bot.send_message(uid, bold_small_caps('⏰ Reminder: your premium is active, but you have not joined the Premium Group yet.\n\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
+            sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your premium is active, but you have not joined the Premium Group yet.\n\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
+            await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
             await upsert_user(uid, last_reminder=now)
         except Exception as e:
             print(f'Reminder error for {uid}: {e}', flush=True)
