@@ -31,7 +31,14 @@ def main_menu():
     ])
 
 
-def plans_menu(credits=0, expired=False):
+def premium_purchase_menu():
+    return InlineKeyboardMarkup([
+        [btn("➕ EXTEND PREMIUM", callback_data="extend_premium", style=SUCCESS)],
+        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+    ])
+
+
+def plans_menu(credits=0, expired=False, callback_prefix="plan"):
     rows = []
     for p in PLANS:
         offer = offer_details(p)
@@ -51,7 +58,7 @@ def plans_menu(credits=0, expired=False):
                 label += " 🎁"
 
         rows.append([
-            btn(label, callback_data=f"plan:{p['id']}", style=PRIMARY)
+            btn(label, callback_data=f"{callback_prefix}:{p['id']}", style=PRIMARY)
         ])
 
     rows.append([
@@ -73,7 +80,7 @@ def expired_offer_menu():
         rows.append([
             btn(
                 f"🔥 {p['name']} — ₹{price} ({EXPIRED_DISCOUNT_PERCENT}% OFF)",
-                callback_data=f"plan:{p['id']}",
+                callback_data=f"{callback_prefix}:{p['id']}",
                 style=SUCCESS
             )
         ])
