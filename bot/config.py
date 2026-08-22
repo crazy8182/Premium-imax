@@ -9,6 +9,9 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME = os.getenv("DB_NAME", "premium_bot")
 
+# Second Auto Filter Bot uses the same DB name/collection, but a different MongoDB URI.
+SECOND_AUTO_FILTER_MONGO_URI = os.getenv("SECOND_AUTO_FILTER_MONGO_URI", "")
+
 ADMIN_IDS = {int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
 PREMIUM_GROUP_ID = int(os.getenv("PREMIUM_GROUP_ID", "0"))
 

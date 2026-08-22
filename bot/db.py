@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
-from bot.config import MONGO_URI, DB_NAME
+from bot.config import MONGO_URI, DB_NAME, SECOND_AUTO_FILTER_MONGO_URI
 
 client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=10000)
 db = client[DB_NAME]
@@ -12,8 +12,21 @@ offer_settings = db.offer_settings
 # IMPORTANT: This bot only writes to it; the Auto Filter Bot code is unchanged.
 auto_filter_premium = db.uersz
 
+# Second Auto Filter Bot: same database name + same collection, different MongoDB URI.
+second_auto_filter_client = AsyncIOMotorClient(
+    SECOND_AUTO_FILTER_MONGO_URI, serverSelectionTimeoutMS=10000
+) if SECOND_AUTO_FILTER_MONGO_URI else None
+second_auto_filter_db = (
+    second_auto_filter_client[DB_NAME] if second_auto_filter_client else None
+)
+second_auto_filter_premium = (
+    second_auto_filter_db.uersz if second_auto_filter_db is not None else None
+)
+
 async def init_db():
     await client.admin.command("ping")
+    if second_auto_filter_client is not None:
+        await second_auto_filter_client.admin.command("ping")
 
     # Existing shared MongoDB databases can contain old user documents
     # without a user_id field. A normal unique index treats those missing
@@ -132,8 +145,19 @@ async def sync_auto_filter_premium(uid, expiry):
     The Auto Filter Bot expects exactly these fields for premium access:
       {"id": user_id, "expiry_time": datetime}
     """
+    document = {"id": int(uid), "expiry_time": expiry}
+
+    # Existing Auto Filter Bot database.
     await auto_filter_premium.update_one(
         {"id": int(uid)},
-        {"$set": {"id": int(uid), "expiry_time": expiry}},
+        {"$set": document},
         upsert=True,
     )
+
+    # Second Auto Filter Bot: same DB/collection names, separate MongoDB URI.
+    if second_auto_filter_premium is not None:
+        await second_auto_filter_premium.update_one(
+            {"id": int(uid)},
+            {"$set": document},
+            upsert=True,
+        )
