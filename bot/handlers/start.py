@@ -30,7 +30,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_video(
         chat_id=update.effective_chat.id,
-        video="https://res.cloudinary.com/b2baorrr/video/upload/v1787393308/Project_08-22_Full_HD_1080p_MEDIUM_FR30.mp4",
+        video="https://res.cloudinary.com/b2baorrr/video/upload/v1787393720/document_6075359779973243096.mp4",
         caption=caption,
         parse_mode="HTML",
         reply_markup=main_menu()
