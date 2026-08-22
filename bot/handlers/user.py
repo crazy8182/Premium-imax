@@ -253,7 +253,7 @@ async def home(update, context):
     q = update.callback_query
     await q.answer()
     caption = bold_small_caps(
-        f"👋 Welcome {u.first_name or 'User'}!\n\n"
+        f"👋 Welcome !\n\n"
         "Help k liye uper ki video dekhein.\n\n"
         "Premium lene ke liye pehle Buy Premium pe tap karein.\n\n"
         "Agar payment already ho gaya hai, toh Buy Premium me category select "
