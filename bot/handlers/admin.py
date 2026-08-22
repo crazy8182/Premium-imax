@@ -32,8 +32,8 @@ async def approve(update, context):
     offer_days = int(pmt.get('offer_days') or offer_details(plan)['days'])
     now = datetime.now(timezone.utc)
     user = await get_user(pmt['user_id'])
-    old = utc_aware(user.get('premium_expiry')) if user else None
-    expiry = old + timedelta(days=offer_days) if old and old > now else now + timedelta(days=offer_days)
+    # A new approved plan starts a fresh validity period; do not add the new days to the old expiry.
+    expiry = now + timedelta(days=offer_days)
     await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_start=now, premium_expiry=expiry, joined_group=False, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
     await sync_auto_filter_premium(pmt['user_id'], expiry)
     if pmt.get('discount_credit_used'):
@@ -133,8 +133,8 @@ async def manual_premium(update, context):
     uid, days = (int(context.args[0]), int(context.args[1]))
     now = datetime.now(timezone.utc)
     user = await get_user(uid)
-    old = utc_aware(user.get('premium_expiry')) if user else None
-    expiry = old + timedelta(days=days) if old and old > now else now + timedelta(days=days)
+    # Manual /premium also starts a fresh validity period.
+    expiry = now + timedelta(days=days)
     await upsert_user(uid, premium_status=True, premium_plan='manual', premium_plan_name=f'Manual {days} Days', premium_start=now, premium_expiry=expiry)
     await sync_auto_filter_premium(uid, expiry)
     link = await make_invite(context.bot, uid)
