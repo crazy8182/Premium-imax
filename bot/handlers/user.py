@@ -252,7 +252,7 @@ async def check(update, context):
 async def home(update, context):
     q = update.callback_query
     await q.answer()
-    await safe_edit_message(q.message, '👋 Welcome\n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein.', reply_markup=main_menu())
+    await safe_edit_message(q.message, '👋 Welcome\n\n https://t.me/akimaxmovieshub/92 \n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein.', reply_markup=main_menu())
 
 async def help_cb(update, context):
     q = update.callback_query
