@@ -20,7 +20,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await upsert_user(u.id, **data)
     else:
         await upsert_user(u.id, **data)
-    await update.message.reply_text(bold_small_caps(f"👋 Welcome {u.first_name or 'User'}!\n\n https://t.me/akimaxmovieshub/92 \n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein."), reply_markup=main_menu(), parse_mode='HTML')
+    await context.bot.copy_message(chat_id=update.effective_chat.id,from_chat_id="@akimaxmovieshub",message_id=92)
+    await update.message.reply_text(bold_small_caps(f"👋 Welcome {u.first_name or 'User'}!\n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein."), reply_markup=main_menu(), parse_mode='HTML')
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton('💼 Contact Support', url=f'https://t.me/imaxsubsciptionbot', style='primary')]]
