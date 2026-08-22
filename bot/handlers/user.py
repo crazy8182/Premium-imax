@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID
+from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID
 from bot.db import get_user, upsert_user, create_payment, payments
 from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
 from bot.services.premium import is_member, make_invite
@@ -314,3 +314,39 @@ async def close_data(update, context):
         await q.message.delete()
     except:
         pass
+
+async def premium_group_member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Revoke a one-user premium invite immediately after it is used."""
+    cm = update.chat_member
+    if not cm:
+        return
+    if cm.chat.id != PREMIUM_GROUP_ID:
+        return
+
+    new_status = cm.new_chat_member.status
+    old_status = cm.old_chat_member.status
+
+    # Only act when a user actually joins/becomes a member.
+    joined = new_status in ("member", "administrator", "creator") and old_status in ("left", "kicked")
+    if not joined:
+        return
+
+    uid = cm.from_user.id if cm.from_user else cm.new_chat_member.user.id
+
+    # Mark the user as joined in the premium bot DB.
+    try:
+        await upsert_user(uid, joined_group=True)
+    except Exception as e:
+        print(f"Joined-group DB update failed for {uid}: {e}", flush=True)
+
+    # Telegram provides the exact invite link used for this join.
+    invite = getattr(cm, "invite_link", None)
+    if invite and getattr(invite, "invite_link", None):
+        try:
+            await context.bot.delete_chat_invite_link(
+                chat_id=PREMIUM_GROUP_ID,
+                invite_link=invite.invite_link,
+            )
+            print(f"Revoked used premium invite for user {uid}", flush=True)
+        except Exception as e:
+            print(f"Failed to revoke used premium invite for {uid}: {e}", flush=True)
