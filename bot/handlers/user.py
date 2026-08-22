@@ -252,9 +252,21 @@ async def check(update, context):
 async def home(update, context):
     q = update.callback_query
     await q.answer()
-    await context.bot.copy_message(chat_id=update.effective_chat.id,from_chat_id="@akimaxmovieshub",message_id=92)
-    await safe_edit_message(q.message, '👋 Welcome\n\nHelp k liye uper ki video dekhein.\n\nPremium lene ke liye pehle Buy Premium pe tap karein.\n\nAgar payment already ho gaya hai, toh Buy Premium me category select karke Paid button pe tap karke apna payment proof submit karein.', reply_markup=main_menu())
+    caption = bold_small_caps(
+        f"👋 Welcome {u.first_name or 'User'}!\n\n"
+        "Help k liye uper ki video dekhein.\n\n"
+        "Premium lene ke liye pehle Buy Premium pe tap karein.\n\n"
+        "Agar payment already ho gaya hai, toh Buy Premium me category select "
+        "karke Paid button pe tap karke apna payment proof submit karein."
+    )
 
+    await app.copy_message(
+        chat_id=update.effective_chat.id,
+        from_chat_id="@akimaxmovieshub",
+        message_id=92,
+        caption=caption,
+        reply_markup=main_menu()
+    )
 async def help_cb(update, context):
     q = update.callback_query
     await q.answer()
