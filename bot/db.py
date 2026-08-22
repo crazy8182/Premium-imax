@@ -12,10 +12,11 @@ offer_settings = db.offer_settings
 # IMPORTANT: This bot only writes to it; the Auto Filter Bot code is unchanged.
 auto_filter_premium = db.uersz
 
-# Second Auto Filter Bot: same database name + same collection, different MongoDB URI.
-second_auto_filter_client = AsyncIOMotorClient(
-    SECOND_AUTO_FILTER_MONGO_URI, serverSelectionTimeoutMS=10000
-) if SECOND_AUTO_FILTER_MONGO_URI else None
+# Second Auto Filter Bot uses the same DB/collection names but a different URI.
+second_auto_filter_client = (
+    AsyncIOMotorClient(SECOND_AUTO_FILTER_MONGO_URI, serverSelectionTimeoutMS=10000)
+    if SECOND_AUTO_FILTER_MONGO_URI else None
+)
 second_auto_filter_db = (
     second_auto_filter_client[DB_NAME] if second_auto_filter_client else None
 )
@@ -154,7 +155,7 @@ async def sync_auto_filter_premium(uid, expiry):
         upsert=True,
     )
 
-    # Second Auto Filter Bot: same DB/collection names, separate MongoDB URI.
+    # Second Auto Filter Bot database. It uses the exact same premium schema.
     if second_auto_filter_premium is not None:
         await second_auto_filter_premium.update_one(
             {"id": int(uid)},
