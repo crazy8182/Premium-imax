@@ -301,8 +301,3 @@ async def close_data(update, context):
         await q.message.delete()
     except:
         pass
-
-    try:
-        await q.message.reply_to_message.delete()
-    except:
-        pass
