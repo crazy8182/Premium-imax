@@ -260,11 +260,11 @@ async def home(update, context):
         "karke Paid button pe tap karke apna payment proof submit karein."
     )
 
-    await app.copy_message(
+    await context.bot.send_video(
         chat_id=update.effective_chat.id,
-        from_chat_id="@akimaxmovieshub",
-        message_id=92,
+        video="https://res.cloudinary.com/b2baorrr/video/upload/v1787388834/Record_2026-08-21-14-01-46_74594bd74a0419242537a8d02ba17993.mp4",
         caption=caption,
+        parse_mode="HTML",
         reply_markup=main_menu()
     )
 async def help_cb(update, context):
