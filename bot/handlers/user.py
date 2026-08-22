@@ -288,3 +288,21 @@ async def offers_cb(update, context):
     else:
         text = '🔥 <b>Current Offers</b>\n\n' + '\n\n'.join(active)
     await safe_edit_message(q.message, text, reply_markup=offers_menu())
+    
+async def close_data(update, context):
+    q = update.callback_query
+
+    try:
+        await q.answer()
+    except:
+        pass
+
+    try:
+        await q.message.delete()
+    except:
+        pass
+
+    try:
+        await q.message.reply_to_message.delete()
+    except:
+        pass
