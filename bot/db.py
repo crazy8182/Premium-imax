@@ -140,6 +140,55 @@ def all_users():
     return users.find({})
 
 
+async def save_premium_invite_message(uid, invite_link, message_id, chat_id=None):
+    """Remember a premium invite message so it can be deleted after the user joins."""
+    entry = {
+        "invite_link": invite_link,
+        "message_id": int(message_id),
+        "chat_id": int(chat_id or uid),
+    }
+    await users.update_one(
+        {"user_id": int(uid)},
+        {
+            "$push": {
+                "premium_invite_messages": {
+                    "$each": [entry],
+                    "$slice": -10,
+                }
+            }
+        },
+        upsert=True,
+    )
+
+
+async def remove_premium_invite_message(uid, invite_link=None):
+    """Remove and return the stored invite-message record matching the used link."""
+    user = await get_user(uid)
+    entries = list(user.get("premium_invite_messages", [])) if user else []
+    if not entries:
+        return None
+
+    match = None
+    remaining = []
+    for entry in entries:
+        if invite_link and entry.get("invite_link") == invite_link and match is None:
+            match = entry
+        else:
+            remaining.append(entry)
+
+    # Fallback: if Telegram did not include invite_link, delete the newest stored message.
+    if match is None and not invite_link:
+        match = entries[-1]
+        remaining = entries[:-1]
+
+    if match is not None:
+        await users.update_one(
+            {"user_id": int(uid)},
+            {"$set": {"premium_invite_messages": remaining}},
+        )
+    return match
+
+
 async def sync_auto_filter_premium(uid, expiry):
     """Sync Premium IMAX premium data into the Auto Filter Bot's existing uersz collection.
 
