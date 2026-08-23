@@ -340,7 +340,7 @@ async def _subscription_status_text(user, bot, uid):
         f"📋 Plan: <b>{plan_id}</b>\n"
         f"📅 Expires on: <b>{expiry_text}</b>\n"
         f"⏳ Days Remaining: <b>{days_remaining} days</b>\n"
-        f"👥 Group Status: <b>{'Joined' if joined else 'Not Joined'}</b>"
+        f"👥 Group Status: <b>{'🟢Joined' if joined else '🔴Not Joined'}</b>"
     )
 
 async def status(update, context):
@@ -361,7 +361,7 @@ async def status_cb(update, context):
         await q.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
     else:
         text = await _subscription_status_text(user, context.bot, uid)
-        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML')
+        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML', reply_markup=premium_purchase_menu())
 
 async def check(update, context):
     q = update.callback_query
