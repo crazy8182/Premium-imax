@@ -9,12 +9,8 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME = os.getenv("DB_NAME", "premium_bot")
 
-# Auto Filter databases are separate from the Premium IMAX database.
-# Set these to the exact MongoDB URI/DB used by each Auto Filter bot.
-AUTO_FILTER_MONGO_URI = os.getenv("AUTO_FILTER_MONGO_URI", "")
-AUTO_FILTER_DB_NAME = os.getenv("AUTO_FILTER_DB_NAME", DB_NAME)
+# Second Auto Filter Bot: same database/collection names, different MongoDB URI.
 SECOND_AUTO_FILTER_MONGO_URI = os.getenv("SECOND_AUTO_FILTER_MONGO_URI", "")
-SECOND_AUTO_FILTER_DB_NAME = os.getenv("SECOND_AUTO_FILTER_DB_NAME", AUTO_FILTER_DB_NAME)
 
 ADMIN_IDS = {int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
 PREMIUM_GROUP_ID = int(os.getenv("PREMIUM_GROUP_ID", "0"))
@@ -29,7 +25,7 @@ PAYMENT_PROOF_CHANNEL_ID = int(os.getenv("PAYMENT_PROOF_CHANNEL_ID", "0"))
 
 REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 INVITE_VALID_HOURS = int(os.getenv("INVITE_VALID_HOURS", "24"))
-CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "10"))
+CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
 
 # Special offer shown automatically for 3 days after premium expiry.
 EXPIRED_OFFER_DAYS = int(os.getenv("EXPIRED_OFFER_DAYS", "3"))
