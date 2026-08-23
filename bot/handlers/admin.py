@@ -6,6 +6,7 @@ from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
 from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import make_invite, remove_member
 from bot.services.formatting import bold_small_caps
+from bot.keyboards import offers_menu
 
 def admin_only(uid):
     return uid in ADMIN_IDS
