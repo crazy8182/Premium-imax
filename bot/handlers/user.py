@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID
 from bot.db import get_user, upsert_user, create_payment, payments, remove_premium_invite_message
-from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu, premium_purchase_menu
+from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
 from bot.services.premium import is_member, make_invite
 from bot.services.formatting import bold_small_caps
 
@@ -71,33 +71,7 @@ async def show_purchase_options(message, user):
                 expiry = expiry.replace(tzinfo=timezone.utc)
             if expiry > now:
                 from bot.keyboards import premium_purchase_menu
-                expiry_utc = expiry if expiry.tzinfo else expiry.replace(tzinfo=timezone.utc)
-                expiry_text = expiry_utc.astimezone().strftime('%d/%m/%Y')
-                now = datetime.now(timezone.utc)
-                days_remaining = max(0, (expiry_utc - now).days)
-            else:
-                expiry_text = str(expiry or 'N/A')
-                days_remaining = 0
-                
-            joined = False
-            try:
-                joined = await is_member(bot, uid)
-                if joined != bool(user.get('joined_group')):
-                    await upsert_user(uid, joined_group=joined)
-            except Exception:
-                joined = bool(user.get('joined_group'))
-                plan_id = user.get('premium_plan') or 'Premium'
-                text = (
-                    "📊 **Your Subscription Status**\n\n"
-                    "✅ Status: **Active**\n"
-                    "📦 Active Plans: **1**\n\n"
-                    f"1. **Movie Premium**\n"
-                    f"📋 Plan: **{plan_id}**\n"
-                    f"📅 Expires on: **{expiry_text}**\n"
-                    f"⏳ Days Remaining: **{days_remaining} days**\n"
-                    f"👥 Group Status: *<b>{'🟢Joined' if joined else '🔴Not Joined'}</b>\n\n"
-                    f"➕ Extend Premium to add more days to your current membership."
-                )
+                text = f"🟢 Your Premium is active.\n\n⏰ Current expiry: {expiry}\n\n➕ Extend Premium to add more days to your current membership."
                 return await safe_edit_message(message, text, reply_markup=premium_purchase_menu())
     return False
 
@@ -356,7 +330,7 @@ async def _subscription_status_text(user, bot, uid):
         f"📋 Plan: <b>{plan_id}</b>\n"
         f"📅 Expires on: <b>{expiry_text}</b>\n"
         f"⏳ Days Remaining: <b>{days_remaining} days</b>\n"
-        f"👥 Group Status: <b>{'🟢Joined' if joined else '🔴Not Joined'}</b>"
+        f"👥 Group Status: <b>{'Joined' if joined else 'Not Joined'}</b>"
     )
 
 async def status(update, context):
@@ -377,7 +351,7 @@ async def status_cb(update, context):
         await q.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
     else:
         text = await _subscription_status_text(user, context.bot, uid)
-        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML', reply_markup=premium_purchase_menu())
+        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML')
 
 async def check(update, context):
     q = update.callback_query
