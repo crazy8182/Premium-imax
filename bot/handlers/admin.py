@@ -395,7 +395,8 @@ async def offer_input(update, context):
                 await context.bot.send_message(
                     u['user_id'],
                     notify_text,
-                    parse_mode='HTML'
+                    parse_mode='HTML',
+                    reply_markup=offers_menu()
                 )
             except Exception:
                 pass
