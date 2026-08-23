@@ -219,7 +219,7 @@ async def offer_all_type_cb(update, context):
         'type': kind,
         'step': 'bulk_values'
     }
-    plan_lines = '\\n'.join(
+    plan_lines = '\n'.join(
         f"{idx + 1}. {p['name']} — send {unit}"
         for idx, p in enumerate(PLANS)
     )
@@ -360,7 +360,7 @@ async def offer_input(update, context):
                 expires_at
             )
 
-        values_text = '\\n'.join(
+        values_text = '\n'.join(
             f"📦 {p['name']} — " +
             (f"➕ +{state['values'][p['id']]} Extra Days" if state['type'] == 'extra_days'
              else f"💸 {state['values'][p['id']]}% OFF")
