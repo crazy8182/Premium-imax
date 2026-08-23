@@ -366,7 +366,7 @@ async def status(update, context):
         await update.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
         return
     text = await _subscription_status_text(user, context.bot, uid)
-    await update.message.reply_text(bold_small_caps(text), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps(text), parse_mode='HTML', reply_markup=premium_purchase_menu())
 
 async def status_cb(update, context):
     q = update.callback_query
