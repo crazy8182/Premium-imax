@@ -71,7 +71,17 @@ async def show_purchase_options(message, user):
                 expiry = expiry.replace(tzinfo=timezone.utc)
             if expiry > now:
                 from bot.keyboards import premium_purchase_menu
-                text = f"🟢 Your Premium is active.\n\n⏰ Current expiry: {expiry}\n\n➕ Extend Premium to add more days to your current membership."
+                text = (
+                    "📊 **Your Subscription Status**\n\n"
+                    "✅ Status: **Active**\n"
+                    "📦 Active Plans: **1**\n\n"
+                    f"1. **Movie Premium**\n"
+                    f"📋 Plan: **{plan_id}**\n"
+                    f"📅 Expires on: **{expiry}**\n"
+                    f"⏳ Days Remaining: **{remaining_days} days**\n"
+                    f"👥 Group Status: **{group_status}**\n\n"
+                    f"➕ Extend Premium to add more days to your current membership."
+                )
                 return await safe_edit_message(message, text, reply_markup=premium_purchase_menu())
     return False
 
