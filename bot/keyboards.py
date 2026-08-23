@@ -68,7 +68,7 @@ def plans_menu(credits=0, expired=False, callback_prefix="plan"):
 
 
 
-def expired_offer_menu():
+def expired_offer_menu(callback_prefix="plan"):
     from bot.config import EXPIRED_DISCOUNT_PERCENT
 
     rows = []
