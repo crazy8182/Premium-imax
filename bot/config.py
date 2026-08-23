@@ -9,8 +9,12 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 MONGO_URI = os.getenv("MONGO_URI", "")
 DB_NAME = os.getenv("DB_NAME", "premium_bot")
 
-# Second Auto Filter Bot: same database/collection names, different MongoDB URI.
+# Auto Filter databases are separate from the Premium IMAX database.
+# Set these to the exact MongoDB URI/DB used by each Auto Filter bot.
+AUTO_FILTER_MONGO_URI = os.getenv("AUTO_FILTER_MONGO_URI", "")
+AUTO_FILTER_DB_NAME = os.getenv("AUTO_FILTER_DB_NAME", DB_NAME)
 SECOND_AUTO_FILTER_MONGO_URI = os.getenv("SECOND_AUTO_FILTER_MONGO_URI", "")
+SECOND_AUTO_FILTER_DB_NAME = os.getenv("SECOND_AUTO_FILTER_DB_NAME", AUTO_FILTER_DB_NAME)
 
 ADMIN_IDS = {int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
 PREMIUM_GROUP_ID = int(os.getenv("PREMIUM_GROUP_ID", "0"))

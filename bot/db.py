@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
-from bot.config import MONGO_URI, DB_NAME, SECOND_AUTO_FILTER_MONGO_URI
+from bot.config import (
+    MONGO_URI, DB_NAME,
+    AUTO_FILTER_MONGO_URI, AUTO_FILTER_DB_NAME,
+    SECOND_AUTO_FILTER_MONGO_URI, SECOND_AUTO_FILTER_DB_NAME,
+)
 
 client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=10000)
 db = client[DB_NAME]
@@ -8,21 +12,75 @@ users = db.users
 payments = db.payments
 offer_settings = db.offer_settings
 
-# Same premium collection used by the Auto Filter Bot.
-# IMPORTANT: This bot only writes to it; the Auto Filter Bot code is unchanged.
-auto_filter_premium = db.uersz
+# IMPORTANT: Auto Filter databases can be different from the Premium IMAX database.
+# Each Auto Filter bot stores premium users in the `uersz` collection as:
+# {"id": <telegram_user_id>, "expiry_time": <datetime>}
+auto_filter_client = (
+    AsyncIOMotorClient(AUTO_FILTER_MONGO_URI, serverSelectionTimeoutMS=10000)
+    if AUTO_FILTER_MONGO_URI else None
+)
+auto_filter_db = auto_filter_client[AUTO_FILTER_DB_NAME] if auto_filter_client else None
+auto_filter_premium = auto_filter_db.uersz if auto_filter_db is not None else None
 
-# Second Auto Filter Bot uses the same DB/collection names but a different URI.
 second_auto_filter_client = (
     AsyncIOMotorClient(SECOND_AUTO_FILTER_MONGO_URI, serverSelectionTimeoutMS=10000)
     if SECOND_AUTO_FILTER_MONGO_URI else None
 )
 second_auto_filter_db = (
-    second_auto_filter_client[DB_NAME] if second_auto_filter_client else None
+    second_auto_filter_client[SECOND_AUTO_FILTER_DB_NAME]
+    if second_auto_filter_client else None
 )
 second_auto_filter_premium = (
     second_auto_filter_db.uersz if second_auto_filter_db is not None else None
 )
+
+def _utc(value):
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    return None
+
+async def _import_auto_filter_collection(collection, source):
+    if collection is None:
+        return 0
+    now = datetime.now(timezone.utc)
+    count = 0
+    async for af_user in collection.find(
+        {"id": {"$type": "number"}, "expiry_time": {"$exists": True, "$ne": None}},
+        {"id": 1, "expiry_time": 1},
+    ):
+        uid = int(af_user["id"])
+        expiry = _utc(af_user.get("expiry_time"))
+        if not expiry or expiry <= now:
+            # Only turn off premiums that were imported from this Auto Filter source.
+            await users.update_one(
+                {"user_id": uid, "premium_source": source},
+                {"$set": {"premium_status": False, "premium_expiry": expiry}},
+            )
+            continue
+        await users.update_one(
+            {"user_id": uid},
+            {"$set": {
+                "user_id": uid,
+                "premium_status": True,
+                "premium_expiry": expiry,
+                "premium_plan": "autofilter",
+                "premium_plan_name": "Auto Filter Premium",
+                "premium_source": source,
+            }, "$setOnInsert": {
+                "premium_start": now,
+                "joined_group": False,
+            }},
+            upsert=True,
+        )
+        count += 1
+    return count
+
+async def sync_all_auto_filter_premium():
+    """Refresh Premium IMAX from both Auto Filter `uersz` collections."""
+    total = 0
+    total += await _import_auto_filter_collection(auto_filter_premium, "autofilter_1")
+    total += await _import_auto_filter_collection(second_auto_filter_premium, "autofilter_2")
+    return total
 
 async def init_db():
     await client.admin.command("ping")
@@ -50,37 +108,9 @@ async def init_db():
     await payments.create_index([("user_id", 1), ("status", 1)])
     await offer_settings.create_index("plan_id", unique=True)
 
-    # Import existing Premium users from the Auto Filter Bot.
-    # The Auto Filter Bot already stores premium users in the shared `uersz`
-    # collection as: {id: user_id, expiry_time: datetime}.  This is a
-    # one-way compatibility import so old Auto Filter premium memberships
-    # also appear in Premium IMAX without changing the Auto Filter Bot.
-    now = datetime.now(timezone.utc)
-    async for af_user in auto_filter_premium.find({
-        "id": {"$type": "number"},
-        "expiry_time": {"$exists": True, "$ne": None, "$gt": now},
-    }, {"id": 1, "expiry_time": 1}):
-        uid = int(af_user["id"])
-        expiry = af_user["expiry_time"]
-        if isinstance(expiry, datetime) and expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
-        await users.update_one(
-            {"user_id": uid},
-            {
-                "$set": {
-                    "user_id": uid,
-                    "premium_status": True,
-                    "premium_expiry": expiry,
-                    "premium_plan": "autofilter",
-                    "premium_plan_name": "Auto Filter Premium",
-                },
-                "$setOnInsert": {
-                    "premium_start": now,
-                    "joined_group": False,
-                },
-            },
-            upsert=True,
-        )
+    # Import existing premiums immediately on startup from both Auto Filter bots.
+    imported = await sync_all_auto_filter_premium()
+    print(f"Imported {imported} active Auto Filter premium users.", flush=True)
 
     print("MongoDB connected successfully.", flush=True)
 
@@ -190,24 +220,15 @@ async def remove_premium_invite_message(uid, invite_link=None):
 
 
 async def sync_auto_filter_premium(uid, expiry):
-    """Sync Premium IMAX premium data into the Auto Filter Bot's existing uersz collection.
-
-    The Auto Filter Bot expects exactly these fields for premium access:
-      {"id": user_id, "expiry_time": datetime}
-    """
+    """Sync Premium IMAX premium data into both Auto Filter `uersz` collections."""
     document = {"id": int(uid), "expiry_time": expiry}
 
-    # Existing Auto Filter Bot database.
-    await auto_filter_premium.update_one(
-        {"id": int(uid)},
-        {"$set": document},
-        upsert=True,
-    )
+    if auto_filter_premium is not None:
+        await auto_filter_premium.update_one(
+            {"id": int(uid)}, {"$set": document}, upsert=True
+        )
 
-    # Second Auto Filter Bot database. It uses the exact same premium schema.
     if second_auto_filter_premium is not None:
         await second_auto_filter_premium.update_one(
-            {"id": int(uid)},
-            {"$set": document},
-            upsert=True,
+            {"id": int(uid)}, {"$set": document}, upsert=True
         )
