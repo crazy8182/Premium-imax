@@ -71,6 +71,7 @@ async def show_purchase_options(message, user):
                 expiry = expiry.replace(tzinfo=timezone.utc)
             if expiry > now:
                 from bot.keyboards import premium_purchase_menu
+                plan_id = user.get('premium_plan') or 'Premium'
                 text = (
                     "📊 **Your Subscription Status**\n\n"
                     "✅ Status: **Active**\n"
