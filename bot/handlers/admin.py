@@ -395,7 +395,7 @@ async def offer_input(update, context):
             try:
                 await context.bot.send_message(
                     u['user_id'],
-                    notify_text,
+                    bold_small_caps(notify_text),
                     parse_mode='HTML',
                     reply_markup=offers_menu()
                 )
