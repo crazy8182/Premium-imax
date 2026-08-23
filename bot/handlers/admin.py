@@ -168,11 +168,20 @@ from bot.config import PLANS, offer_details
 from bot.services.offers import save_offer, clear_offer
 
 def _offer_manager_keyboard():
-    rows = []
+    rows = [
+        [InlineKeyboardButton('🔥 ALL PLANS OFFER', callback_data='offer_all', style='success')]
+    ]
     for p in PLANS:
         rows.append([InlineKeyboardButton(f"📦 {p['name']}", callback_data=f"offer_plan:{p['id']}", style='primary')])
     rows.append([InlineKeyboardButton('📋 Current Offers', callback_data='offer_list', style='success')])
     return InlineKeyboardMarkup(rows)
+
+def _offer_all_type_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('➕ Extra Days (Plan-wise)', callback_data='offer_all_type:extra_days', style='success')],
+        [InlineKeyboardButton('💸 Discount % (Plan-wise)', callback_data='offer_all_type:discount', style='success')],
+        [InlineKeyboardButton('🔙 Back', callback_data='offer_manager', style='primary')],
+    ])
 
 def _offer_plan_keyboard(pid):
     return InlineKeyboardMarkup([[InlineKeyboardButton('➕ Extra Days', callback_data=f'offer_type:{pid}:extra_days', style='success')], [InlineKeyboardButton('💸 Discount %', callback_data=f'offer_type:{pid}:discount', style='success')], [InlineKeyboardButton('❌ Disable Offer', callback_data=f'offer_disable:{pid}', style='danger')], [InlineKeyboardButton('🔙 Back', callback_data='offer_manager', style='primary')]])
@@ -181,6 +190,50 @@ async def offer_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
     await update.message.reply_text(bold_small_caps('🔥 <b>Offer Manager</b>\n\nSelect a plan:'), reply_markup=_offer_manager_keyboard(), parse_mode='HTML')
+
+async def offer_all_cb(update, context):
+    if not admin_only(update.effective_user.id):
+        return await update.callback_query.answer('Unauthorized.', show_alert=True)
+    q = update.callback_query
+    await q.answer()
+    await q.message.edit_text(
+        bold_small_caps(
+            '🔥 <b>ALL PLANS OFFER</b>\n\n'
+            'Offer ek hi baar setup hoga, lekin value har plan ke liye alag rahegi.\n\n'
+            'Choose offer type:'
+        ),
+        reply_markup=_offer_all_type_keyboard(),
+        parse_mode='HTML'
+    )
+
+async def offer_all_type_cb(update, context):
+    if not admin_only(update.effective_user.id):
+        return await update.callback_query.answer('Unauthorized.', show_alert=True)
+    q = update.callback_query
+    await q.answer()
+    _, kind = q.data.split(':', 1)
+    unit = 'days' if kind == 'extra_days' else '%'
+    context.user_data['offer_setup'] = {
+        'bulk': True,
+        'type': kind,
+        'step': 'bulk_values'
+    }
+    plan_lines = '\\n'.join(
+        f"{idx + 1}. {p['name']} — send {unit}"
+        for idx, p in enumerate(PLANS)
+    )
+    examples = ' '.join('5' if kind == 'extra_days' else '20' for _ in PLANS)
+    await q.message.edit_text(
+        bold_small_caps(
+            f'🔥 <b>ALL PLANS — {"EXTRA DAYS" if kind == "extra_days" else "DISCOUNT %"}</b>\n\n'
+            f'{plan_lines}\n\n'
+            f'Send values in the same order, separated by spaces.\n'
+            f'Example: <code>{examples}</code>\n\n'
+            'Each plan ki value alag rahegi.\n'
+            'Send <code>0</code> to cancel.'
+        ),
+        parse_mode='HTML'
+    )
 
 async def offer_manager_cb(update, context):
     q = update.callback_query
@@ -225,6 +278,124 @@ async def offer_input(update, context):
     if not state:
         return
     text = (update.message.text or '').strip()
+
+    # Bulk offer: all plans are activated in one operation, while each
+    # plan keeps its own Extra Days / Discount value.
+    if state.get('bulk') and state.get('step') == 'bulk_values':
+        parts = text.replace(',', ' ').split()
+        if any(x == '0' for x in parts):
+            context.user_data.pop('offer_setup', None)
+            return await update.message.reply_text(
+                bold_small_caps('❌ Offer setup cancelled.'), parse_mode='HTML'
+            )
+        if len(parts) != len(PLANS):
+            return await update.message.reply_text(
+                bold_small_caps(
+                    f'❌ Please send exactly {len(PLANS)} values in this order:\\n' +
+                    '\\n'.join(f'{i + 1}. {p["name"]}' for i, p in enumerate(PLANS))
+                ),
+                parse_mode='HTML'
+            )
+        try:
+            values = [int(x) for x in parts]
+        except ValueError:
+            return await update.message.reply_text(
+                bold_small_caps('❌ Please send numbers only.'), parse_mode='HTML'
+            )
+        if any(v <= 0 for v in values):
+            return await update.message.reply_text(
+                bold_small_caps('❌ All plan values must be greater than 0.'), parse_mode='HTML'
+            )
+        if state['type'] == 'discount' and any(v > 100 for v in values):
+            return await update.message.reply_text(
+                bold_small_caps('❌ Discount must be between 1 and 100% for every plan.'), parse_mode='HTML'
+            )
+
+        state['values'] = {p['id']: v for p, v in zip(PLANS, values)}
+        state['step'] = 'bulk_label'
+        return await update.message.reply_text(
+            bold_small_caps(
+                '📝 Send one offer name/label for all plans.\n'
+                'Example: Independence Day Offer\n'
+                'Or send <code>-</code> for no label.'
+            ),
+            parse_mode='HTML'
+        )
+
+    if state.get('bulk') and state.get('step') == 'bulk_label':
+        state['label'] = '' if text == '-' else text[:100]
+        state['step'] = 'bulk_expiry'
+        return await update.message.reply_text(
+            bold_small_caps(
+                '⏰ Send validity in days.\n'
+                'Example: <code>7</code>\n'
+                'Send <code>0</code> for no expiry.'
+            ),
+            parse_mode='HTML'
+        )
+
+    if state.get('bulk') and state.get('step') == 'bulk_expiry':
+        try:
+            days = int(text)
+        except ValueError:
+            return await update.message.reply_text(
+                bold_small_caps('❌ Please send a number only.'), parse_mode='HTML'
+            )
+        if days < 0:
+            return await update.message.reply_text(
+                bold_small_caps('❌ Expiry days cannot be negative.'), parse_mode='HTML'
+            )
+
+        from datetime import datetime, timedelta, timezone
+        expires_at = None if days == 0 else datetime.now(timezone.utc) + timedelta(days=days)
+
+        # Save every plan separately, but in the same admin operation.
+        for p in PLANS:
+            await save_offer(
+                p['id'],
+                state['type'],
+                state['values'][p['id']],
+                state['label'],
+                expires_at
+            )
+
+        values_text = '\\n'.join(
+            f"📦 {p['name']} — " +
+            (f"➕ +{state['values'][p['id']]} Extra Days" if state['type'] == 'extra_days'
+             else f"💸 {state['values'][p['id']]}% OFF")
+            for p in PLANS
+        )
+        expiry_text = 'No expiry' if not expires_at else expires_at.strftime('%d-%m-%Y %H:%M UTC')
+
+        context.user_data.pop('offer_setup', None)
+        await update.message.reply_text(
+            bold_small_caps(
+                f'✅ <b>ALL PLANS OFFERS ACTIVATED</b>\\n\\n'
+                f'{values_text}\\n\\n'
+                f'📝 {state["label"] or "No label"}\\n'
+                f'⏰ Expiry: {expiry_text}'
+            ),
+            parse_mode='HTML'
+        )
+
+        # ONE combined notification instead of one message per plan.
+        notify_text = (
+            '🔥 <b>New Premium Offer!</b>\\n\\n' +
+            values_text +
+            f'\\n\\n📝 {state["label"] or "Special Offer"}' +
+            '\\n\\nUse /offers to view current offers.'
+        )
+        async for u in users.find({'user_id': {'$exists': True}}, {'user_id': 1}):
+            try:
+                await context.bot.send_message(
+                    u['user_id'],
+                    bold_small_caps(notify_text),
+                    parse_mode='HTML'
+                )
+            except Exception:
+                pass
+        return
+
     if state['step'] == 'value':
         try:
             value = int(text)
