@@ -301,8 +301,26 @@ async def check_premium(update, context):
     if not admin_only(update.effective_user.id):
         return
     rows = []
-    cursor = users.find({'premium_expiry': {'$exists': True, '$ne': None}}, {'user_id': 1, 'first_name': 1, 'last_name': 1, 'username': 1, 'premium_expiry': 1, 'premium_status': 1, 'premium_plan_name': 1}).sort('premium_expiry', 1)
     now = datetime.now(timezone.utc)
+    # Show ONLY currently active premium users.
+    # Expired users and users with premium_status=False are excluded directly
+    # by MongoDB instead of being shown as EXPIRED in the report.
+    cursor = users.find(
+        {
+            'premium_status': True,
+            'premium_expiry': {'$exists': True, '$ne': None, '$gt': now},
+        },
+        {
+            'user_id': 1,
+            'first_name': 1,
+            'last_name': 1,
+            'username': 1,
+            'premium_expiry': 1,
+            'premium_status': 1,
+            'premium_plan_name': 1,
+            'premium_plan': 1,
+        }
+    ).sort('premium_expiry', 1)
     async for user in cursor:
         uid = user.get('user_id', '')
         first = (user.get('first_name') or '').strip()
@@ -313,7 +331,7 @@ async def check_premium(update, context):
         expiry = utc_aware(user.get('premium_expiry'))
         if expiry:
             expiry_text = expiry.strftime('%d-%m-%Y %H:%M UTC')
-            status = 'ACTIVE' if user.get('premium_status') and expiry > now else 'EXPIRED'
+            status = 'ACTIVE' if expiry and expiry > now and user.get('premium_status') else 'EXPIRED'
         else:
             expiry_text = 'N/A'
             status = 'UNKNOWN'
