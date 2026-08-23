@@ -71,6 +71,21 @@ async def show_purchase_options(message, user):
                 expiry = expiry.replace(tzinfo=timezone.utc)
             if expiry > now:
                 from bot.keyboards import premium_purchase_menu
+                expiry_utc = expiry if expiry.tzinfo else expiry.replace(tzinfo=timezone.utc)
+                expiry_text = expiry_utc.astimezone().strftime('%d/%m/%Y')
+                now = datetime.now(timezone.utc)
+                days_remaining = max(0, (expiry_utc - now).days)
+            else:
+                expiry_text = str(expiry or 'N/A')
+                days_remaining = 0
+                
+            joined = False
+            try:
+                joined = await is_member(bot, uid)
+                if joined != bool(user.get('joined_group')):
+                    await upsert_user(uid, joined_group=joined)
+            except Exception:
+                joined = bool(user.get('joined_group'))
                 plan_id = user.get('premium_plan') or 'Premium'
                 text = (
                     "📊 **Your Subscription Status**\n\n"
@@ -78,9 +93,9 @@ async def show_purchase_options(message, user):
                     "📦 Active Plans: **1**\n\n"
                     f"1. **Movie Premium**\n"
                     f"📋 Plan: **{plan_id}**\n"
-                    f"📅 Expires on: **{expiry}**\n"
-                    f"⏳ Days Remaining: **{remaining_days} days**\n"
-                    f"👥 Group Status: **{group_status}**\n\n"
+                    f"📅 Expires on: **{expiry_text}**\n"
+                    f"⏳ Days Remaining: **{days_remaining} days**\n"
+                    f"👥 Group Status: *<b>{'🟢Joined' if joined else '🔴Not Joined'}</b>\n\n"
                     f"➕ Extend Premium to add more days to your current membership."
                 )
                 return await safe_edit_message(message, text, reply_markup=premium_purchase_menu())
