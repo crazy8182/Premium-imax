@@ -388,7 +388,7 @@ async def offer_input(update, context):
             '\n\n╔══════════════════════╗'
             '\n   🚀 <b> LIMITED TIME ONLY</b>'
             '\n╚══════════════════════╝'
-            '\n\n💳 <b>Cʜᴏᴏꜱᴇ ʏᴏᴜʀ ᴘʟᴀɴ &ᴀᴍᴘ; ɢᴏ Pʀᴇᴍɪᴜᴍ!</b>'
+            '\n\n💳 <b>Cʜᴏᴏꜱᴇ ʏᴏᴜʀ ᴘʟᴀɴ & ɢᴏ Pʀᴇᴍɪᴜᴍ!</b>'
             '\n👉 <b>/offers</b>'
         )
         async for u in users.find({'user_id': {'$exists': True}}, {'user_id': 1}):
