@@ -382,20 +382,20 @@ async def offer_input(update, context):
         # ONE combined notification instead of one message per plan.
         notify_text = (
             '🎉 <b>EXCLUSIVE PREMIUM OFFER</b> 🎉\n\n'
-            '✨ <i>Special benefits are waiting for you!</i>\n\n'
+            '✨ <b><i>Sᴘᴇᴄɪᴀʟ ʙᴇɴᴇꜰɪᴛꜱ ᴀʀᴇ ᴡᴀɪᴛɪɴɢ ꜰᴏʀ ʏᴏᴜ!</i></b>\n\n'
             + values_text +
-            f'\n\n🏷️ <b>Offer:</b> {state["label"] or "Special Offer"}'
+            f'\n\n🏷️ <b>Oꜰꜰᴇʀ: {state["label"] or "Special Offer"}</b>'
             '\n\n╔══════════════════════╗'
-            '\n   🚀 <b>LIMITED TIME ONLY</b>'
+            '\n   🚀 <b> LIMITED TIME ONLY</b>'
             '\n╚══════════════════════╝'
-            '\n\n💳 Choose your plan & go Premium!'
-            '\n👉 /offers'
+            '\n\n💳 <b>Cʜᴏᴏꜱᴇ ʏᴏᴜʀ ᴘʟᴀɴ &ᴀᴍᴘ; ɢᴏ Pʀᴇᴍɪᴜᴍ!</b>'
+            '\n👉 <b>/offers</b>'
         )
         async for u in users.find({'user_id': {'$exists': True}}, {'user_id': 1}):
             try:
                 await context.bot.send_message(
                     u['user_id'],
-                    bold_small_caps(notify_text),
+                    notify_text,
                     parse_mode='HTML',
                     reply_markup=offers_menu()
                 )
