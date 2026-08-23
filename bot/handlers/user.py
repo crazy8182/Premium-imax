@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID
 from bot.db import get_user, upsert_user, create_payment, payments, remove_premium_invite_message
-from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu
+from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu, premium_purchase_menu
 from bot.services.premium import is_member, make_invite
 from bot.services.formatting import bold_small_caps
 
