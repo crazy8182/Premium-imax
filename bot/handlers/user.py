@@ -300,13 +300,47 @@ async def screenshot(update, context):
         plan_line += ' · Extension'
     await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Movie Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
+async def _subscription_status_text(user, bot, uid):
+    """Build the detailed subscription status shown in My Premium / status."""
+    expiry = user.get('premium_expiry')
+    if isinstance(expiry, datetime):
+        # MongoDB may store timezone-naive UTC datetimes.
+        expiry_utc = expiry if expiry.tzinfo else expiry.replace(tzinfo=timezone.utc)
+        expiry_text = expiry_utc.astimezone().strftime('%d/%m/%Y')
+        now = datetime.now(timezone.utc)
+        days_remaining = max(0, (expiry_utc - now).days)
+    else:
+        expiry_text = str(expiry or 'N/A')
+        days_remaining = 0
+
+    joined = False
+    try:
+        joined = await is_member(bot, uid)
+        if joined != bool(user.get('joined_group')):
+            await upsert_user(uid, joined_group=joined)
+    except Exception:
+        joined = bool(user.get('joined_group'))
+
+    plan_id = user.get('premium_plan') or 'Premium'
+    return (
+        "📊 <b>Your Subscription Status</b>\n\n"
+        "✅ Status: <b>Active</b>\n"
+        "📦 Active Plans: <b>1</b>\n\n"
+        "1. <b>Movie Premium</b>\n"
+        f"📋 Plan: <b>{plan_id}</b>\n"
+        f"📅 Expires on: <b>{expiry_text}</b>\n"
+        f"⏳ Days Remaining: <b>{days_remaining} days</b>\n"
+        f"👥 Group Status: <b>{'Joined' if joined else 'Not Joined'}</b>"
+    )
+
 async def status(update, context):
     uid = update.effective_user.id
     user = await get_user(uid)
     if not user or not user.get('premium_status'):
         await update.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
         return
-    await update.message.reply_text(bold_small_caps(f"🟢 Premium Active\n📦 {user.get('premium_plan_name')}\n⏰ Expiry: {user.get('premium_expiry')}"), parse_mode='HTML')
+    text = await _subscription_status_text(user, context.bot, uid)
+    await update.message.reply_text(bold_small_caps(text), parse_mode='HTML')
 
 async def status_cb(update, context):
     q = update.callback_query
@@ -316,7 +350,8 @@ async def status_cb(update, context):
     if not user or not user.get('premium_status'):
         await q.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
     else:
-        await q.message.reply_text(bold_small_caps(f"🟢 Premium Active\n📦 {user.get('premium_plan_name')}\n⏰ Expiry: {user.get('premium_expiry')}"), parse_mode='HTML')
+        text = await _subscription_status_text(user, context.bot, uid)
+        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML')
 
 async def check(update, context):
     q = update.callback_query
