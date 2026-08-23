@@ -2,7 +2,7 @@ from bot.services.formatting import bold_small_caps
 import asyncio
 from datetime import datetime, timedelta, timezone
 from bot.config import CHECK_INTERVAL_SECONDS, REMINDER_HOURS, EXPIRED_OFFER_DAYS, EXPIRED_DISCOUNT_PERCENT, PLAN_MAP
-from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium, save_premium_invite_message, sync_all_auto_filter_premium
+from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import is_member, remove_member, make_invite
 
 def utc_datetime(value):
@@ -15,13 +15,6 @@ def utc_datetime(value):
     return value.astimezone(timezone.utc)
 
 async def process(bot):
-    # Refresh from both Auto Filter bots first, so manual /add_premium changes
-    # become visible in Premium IMAX without restarting this bot.
-    try:
-        imported = await sync_all_auto_filter_premium()
-        print(f"Auto Filter premium sync: {imported} active users", flush=True)
-    except Exception as e:
-        print(f"Auto Filter premium sync error: {e}", flush=True)
     now = datetime.now(timezone.utc)
     async for user in expired_users():
         uid = user['user_id']
