@@ -29,7 +29,7 @@ PAYMENT_PROOF_CHANNEL_ID = int(os.getenv("PAYMENT_PROOF_CHANNEL_ID", "0"))
 
 REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 INVITE_VALID_HOURS = int(os.getenv("INVITE_VALID_HOURS", "24"))
-CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "60"))
+CHECK_INTERVAL_SECONDS = int(os.getenv("CHECK_INTERVAL_SECONDS", "10"))
 
 # Special offer shown automatically for 3 days after premium expiry.
 EXPIRED_OFFER_DAYS = int(os.getenv("EXPIRED_OFFER_DAYS", "3"))
