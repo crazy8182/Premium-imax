@@ -324,7 +324,7 @@ async def screenshot(update, context):
     plan_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})"
     if purchase_type == 'extension':
         plan_line += ' · Extension'
-    await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Movie Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
+    await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Movie Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
 async def _subscription_status_text(user, bot, uid):
     """Build the detailed subscription status shown in My Premium / status."""
