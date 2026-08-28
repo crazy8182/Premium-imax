@@ -173,7 +173,7 @@ def _offer_manager_keyboard():
         [InlineKeyboardButton('🔥 ALL PLANS OFFER', callback_data='offer_all', style='success')]
     ]
     for p in PLANS:
-        rows.append([InlineKeyboardButton(f"📦 {p['name']}", callback_data=f"offer_plan:{p['id']}", style='primary')])
+        rows.append([InlineKeyboardButton(f"🏷️ {p['name']}", callback_data=f"offer_plan:{p['id']}", style='primary')])
     rows.append([InlineKeyboardButton('📋 Current Offers', callback_data='offer_list', style='success')])
     return InlineKeyboardMarkup(rows)
 
@@ -256,7 +256,7 @@ async def offer_plan_cb(update, context):
     status = '❌ No active offer'
     if o['active']:
         status = f"🔥 {o['type']} | {o['value']} | {o['label'] or 'No label'}"
-    await q.message.edit_text(bold_small_caps(f"📦 <b>{p['name']}</b>\n\nCurrent: {status}\n\nChoose offer type:"), reply_markup=_offer_plan_keyboard(pid), parse_mode='HTML')
+    await q.message.edit_text(bold_small_caps(f"🏷️ <b>{p['name']}</b>\n\nCurrent: {status}\n\nChoose offer type:"), reply_markup=_offer_plan_keyboard(pid), parse_mode='HTML')
 
 async def offer_type_cb(update, context):
     q = update.callback_query
@@ -361,7 +361,7 @@ async def offer_input(update, context):
             )
 
         values_text = '\n'.join(
-            f"📦 {p['name']} — " +
+            f"🏷️ {p['name']} — " +
             (f"➕ +{state['values'][p['id']]} Extra Days" if state['type'] == 'extra_days'
              else f"💸 {state['values'][p['id']]}% OFF")
             for p in PLANS
@@ -385,9 +385,9 @@ async def offer_input(update, context):
             '✨ <b><i>Sᴘᴇᴄɪᴀʟ ʙᴇɴᴇꜰɪᴛꜱ ᴀʀᴇ ᴡᴀɪᴛɪɴɢ ꜰᴏʀ ʏᴏᴜ!</i></b>\n\n'
             + values_text +
             f'\n\n🏷️ <b>Oꜰꜰᴇʀ: {state["label"] or "Special Offer"}</b>'
-            '\n\n╔══════════════════════╗'
+            '\n\n╔═══════════════════╗'
             '\n   🚀 <b> LIMITED TIME ONLY</b>'
-            '\n╚══════════════════════╝'
+            '\n╚═══════════════════╝'
             '\n\n💳 <b>Cʜᴏᴏꜱᴇ ʏᴏᴜʀ ᴘʟᴀɴ & ɢᴏ Pʀᴇᴍɪᴜᴍ!</b>'
             '\n👉 <b>/offers</b>'
         )
@@ -436,7 +436,7 @@ async def offer_input(update, context):
         o = offer_details(p)
         expiry_text = 'No expiry' if not expires_at else expires_at.strftime('%d-%m-%Y %H:%M UTC')
         await update.message.reply_text(bold_small_caps(f"✅ <b>Offer Activated</b>\n\n📦 {p['name']}\n🔥 {state['type']}\n💎 Value: {state['value']}\n📝 {state['label'] or 'No label'}\n⏰ Expiry: {expiry_text}"), parse_mode='HTML')
-        text = f"🔥 <b>New Premium Offer!</b>\n\n📦 {p['name']}\n{('➕ +' + str(state['value']) + ' Extra Days' if state['type'] == 'extra_days' else '💸 ' + str(state['value']) + '% OFF')}\n📝 {state['label'] or 'Special Offer'}\n\nUse /offers to view current offers."
+        text = f"🔥 <b>New Premium Offer!</b>\n\n🏷️ {p['name']}\n{('➕ +' + str(state['value']) + ' Extra Days' if state['type'] == 'extra_days' else '💸 ' + str(state['value']) + '% OFF')}\n📝 {state['label'] or 'Special Offer'}\n\nUse /offers to view current offers."
         async for u in users.find({'user_id': {'$exists': True}}, {'user_id': 1}):
             try:
                 await context.bot.send_message(u['user_id'], bold_small_caps(text), parse_mode='HTML')
@@ -514,7 +514,7 @@ async def check_premium(update, context):
             expiry_text = 'N/A'
             status = 'UNKNOWN'
         plan = user.get('premium_plan_name') or user.get('premium_plan') or 'Premium'
-        rows.append(f'👤 Name: {display_name}\n🆔 ID: {uid}\n📦 Plan: {plan}\n📅 Expire: {expiry_text}\n📌 Status: {status}\n')
+        rows.append(f'👤 Name: {display_name}\n🆔 ID: {uid}\n🏷️ Plan: {plan}\n📅 Expire: {expiry_text}\n📌 Status: {status}\n')
     if not rows:
         return await update.message.reply_text(bold_small_caps('📋 Koi premium user data nahi mila.'), parse_mode='HTML')
     header = f'💎 PREMIUM USERS — {len(rows)}\n\n'
