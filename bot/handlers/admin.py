@@ -361,9 +361,12 @@ async def offer_input(update, context):
             )
 
         values_text = '\n'.join(
-            f"🏷️ {p['name']} — " +
-            (f"➕ +{state['values'][p['id']]} Extra Days" if state['type'] == 'extra_days'
-             else f"💸 {state['values'][p['id']]}% OFF")
+            f"🏷️ {p['name']} — ₹{p['price']} | " +
+            (
+                f"➕ +{state['values'][p['id']]} Extra Days"
+                if state['type'] == 'extra_days'
+                else f"💸 {state['values'][p['id']]}% OFF → ₹{round(p['price'] * (100 - state['values'][p['id']]) / 100)}"
+            )
             for p in PLANS
         )
         expiry_text = 'No expiry' if not expires_at else expires_at.strftime('%d-%m-%Y %H:%M UTC')
@@ -436,7 +439,7 @@ async def offer_input(update, context):
         o = offer_details(p)
         expiry_text = 'No expiry' if not expires_at else expires_at.strftime('%d-%m-%Y %H:%M UTC')
         await update.message.reply_text(bold_small_caps(f"✅ <b>Offer Activated</b>\n\n📦 {p['name']}\n🔥 {state['type']}\n💎 Value: {state['value']}\n📝 {state['label'] or 'No label'}\n⏰ Expiry: {expiry_text}"), parse_mode='HTML')
-        text = f"🔥 <b>New Premium Offer!</b>\n\n🏷️ {p['name']}\n{('➕ +' + str(state['value']) + ' Extra Days' if state['type'] == 'extra_days' else '💸 ' + str(state['value']) + '% OFF')}\n📝 {state['label'] or 'Special Offer'}\n\nUse /offers to view current offers."
+        text = f"🔥 <b>New Premium Offer!</b>\n\n🏷️ {p['name']} — ₹{p['price']}\n{('➕ +' + str(state['value']) + ' Extra Days' if state['type'] == 'extra_days' else '💸 ' + str(state['value']) + '% OFF → ₹' + str(round(p['price'] * (100 - state['value']) / 100)))}\n📝 {state['label'] or 'Special Offer'}\n\nUse /offers to view current offers."
         async for u in users.find({'user_id': {'$exists': True}}, {'user_id': 1}):
             try:
                 await context.bot.send_message(u['user_id'], bold_small_caps(text), parse_mode='HTML')
