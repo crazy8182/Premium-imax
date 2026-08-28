@@ -432,9 +432,21 @@ async def offers_cb(update, context):
     for p in PLANS:
         offer = offer_details(p)
         if offer['active']:
-            detail = f"➕ +{offer['value']} Extra Days" if offer['type'] == 'extra_days' else f"💸 {offer['value']}% OFF"
             label = f" — {offer['label']}" if offer['label'] else ''
-            active.append(f"🔥 <b>{p['name']}</b>{label}\n{detail}\n⏳ Validity: {offer['days']} days\n💰 Price: ₹{offer['price']}")
+
+            if offer['type'] == 'extra_days':
+                detail = f"➕ +{offer['value']} Extra Days"
+                price_line = f"💰 Price: ₹{p['price']}"
+            else:
+                detail = f"💸 {offer['value']}% OFF"
+                price_line = f"💰 Original Price: ₹{p['price']}\n💵 Offer Price: ₹{offer['price']}"
+
+            active.append(
+                f"🔥 <b>{p['name']}</b>{label}\n"
+                f"{detail}\n"
+                f"⏳ Validity: {offer['days']} days\n"
+                f"{price_line}"
+            )
     if not active:
         text = '🔥 <b>Current Offers</b>\n\n😔 Koi active offers nahi hai abhi filhaal!\n\nNew offer aane pe aapko notification mil jayega.'
     else:
