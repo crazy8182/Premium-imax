@@ -52,18 +52,18 @@ def _plan_offer(index):
     }
 
 PLANS = [
-    {"id":"p1","name":os.getenv("PLAN_1_NAME","SILVER"),"days":int(os.getenv("PLAN_1_DAYS","30")),"price":int(os.getenv("PLAN_1_PRICE","99")),"offer":_plan_offer(1)},
-    {"id":"p2","name":os.getenv("PLAN_2_NAME","GOLD"),"days":int(os.getenv("PLAN_2_DAYS","90")),"price":int(os.getenv("PLAN_2_PRICE","249")),"offer":_plan_offer(2)},
-    {"id":"p3","name":os.getenv("PLAN_3_NAME","PLATINUM"),"days":int(os.getenv("PLAN_3_DAYS","180")),"price":int(os.getenv("PLAN_3_PRICE","449")),"offer":_plan_offer(3)},
-    {"id":"p4","name":os.getenv("PLAN_4_NAME","DAIMOND"),"days":int(os.getenv("PLAN_4_DAYS","365")),"price":int(os.getenv("PLAN_4_PRICE","799")),"offer":_plan_offer(4)},
+    {"id":"p1","name":os.getenv("PLAN_1_NAME","1 MONTH"),"days":int(os.getenv("PLAN_1_DAYS","30")),"price":int(os.getenv("PLAN_1_PRICE","99")),"offer":_plan_offer(1)},
+    {"id":"p2","name":os.getenv("PLAN_2_NAME","3 MONTH"),"days":int(os.getenv("PLAN_2_DAYS","90")),"price":int(os.getenv("PLAN_2_PRICE","249")),"offer":_plan_offer(2)},
+    {"id":"p3","name":os.getenv("PLAN_3_NAME","6 MONTH"),"days":int(os.getenv("PLAN_3_DAYS","180")),"price":int(os.getenv("PLAN_3_PRICE","449")),"offer":_plan_offer(3)},
+    {"id":"p4","name":os.getenv("PLAN_4_NAME","12 MONTH"),"days":int(os.getenv("PLAN_4_DAYS","365")),"price":int(os.getenv("PLAN_4_PRICE","799")),"offer":_plan_offer(4)},
 ]
 PLAN_MAP = {p["id"]: p for p in PLANS}
 
 # Separate 18+ Premium plans. These memberships are completely independent
 # from Movie Premium and never sync to the Auto Filter premium collection.
 ADULT_PLANS = [
-    {"id":"a1","name":os.getenv("ADULT_PLAN_1_NAME","18+ SILVER"),"days":int(os.getenv("ADULT_PLAN_1_DAYS","30")),"price":int(os.getenv("ADULT_PLAN_1_PRICE","99"))},
-    {"id":"a2","name":os.getenv("ADULT_PLAN_2_NAME","18+ GOLD"),"days":int(os.getenv("ADULT_PLAN_2_DAYS","90")),"price":int(os.getenv("ADULT_PLAN_2_PRICE","249"))},
+    {"id":"a1","name":os.getenv("ADULT_PLAN_1_NAME","Desi 1 MONTH"),"days":int(os.getenv("ADULT_PLAN_1_DAYS","30")),"price":int(os.getenv("ADULT_PLAN_1_PRICE","99"))},
+    {"id":"a2","name":os.getenv("ADULT_PLAN_2_NAME","Desi 3 MONTH"),"days":int(os.getenv("ADULT_PLAN_2_DAYS","90")),"price":int(os.getenv("ADULT_PLAN_2_PRICE","249"))},
 ]
 ADULT_PLAN_MAP = {p["id"]: p for p in ADULT_PLANS}
 
