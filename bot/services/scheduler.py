@@ -85,7 +85,7 @@ async def process(bot):
         try:
             link = await make_invite(bot, uid, "adult")
             from bot.keyboards import join_menue
-            sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your 18+ Premium is active, but you have not joined the 18+ Premium Group yet.\\n\\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
+            sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your 18+ Premium is active, but you have not joined the 18+ Premium Group yet.\n\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
             await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
             await upsert_user(uid, adult_last_reminder=now)
         except Exception as e:
