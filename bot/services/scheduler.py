@@ -2,7 +2,7 @@ from bot.services.formatting import bold_small_caps
 import asyncio
 from datetime import datetime, timedelta, timezone
 from bot.config import CHECK_INTERVAL_SECONDS, REMINDER_HOURS, EXPIRED_OFFER_DAYS, EXPIRED_DISCOUNT_PERCENT, PLAN_MAP
-from bot.db import expired_users, active_users, upsert_user, sync_auto_filter_premium, save_premium_invite_message
+from bot.db import expired_users, active_users, expired_adult_users, active_adult_users, upsert_user, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import is_member, remove_member, make_invite
 
 def utc_datetime(value):
@@ -56,6 +56,41 @@ async def process(bot):
             await upsert_user(uid, last_reminder=now)
         except Exception as e:
             print(f'Reminder error for {uid}: {e}', flush=True)
+    # 18+ Premium is a completely separate membership lifecycle.
+    async for user in expired_adult_users():
+        uid = user['user_id']
+        try:
+            await remove_member(bot, uid, "adult")
+        except Exception as e:
+            print(f'18+ remove member error for {uid}: {e}', flush=True)
+        await upsert_user(uid, adult_premium_status=False, adult_joined_group=False)
+
+    async for user in active_adult_users():
+        uid = user['user_id']
+        expiry = utc_datetime(user.get('adult_premium_expiry'))
+        if expiry and expiry <= now:
+            continue
+        try:
+            inside = await is_member(bot, uid, "adult")
+        except Exception as e:
+            print(f'18+ membership check error for {uid}: {e}', flush=True)
+            continue
+        if inside:
+            if not user.get('adult_joined_group'):
+                await upsert_user(uid, adult_joined_group=True)
+            continue
+        last = utc_datetime(user.get('adult_last_reminder'))
+        if last and now - last < timedelta(hours=REMINDER_HOURS):
+            continue
+        try:
+            link = await make_invite(bot, uid, "adult")
+            from bot.keyboards import join_menue
+            sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your 18+ Premium is active, but you have not joined the 18+ Premium Group yet.\\n\\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
+            await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+            await upsert_user(uid, adult_last_reminder=now)
+        except Exception as e:
+            print(f'18+ reminder error for {uid}: {e}', flush=True)
+
     async for user in __import__('bot.db', fromlist=['users']).users.find({'premium_status': False, 'expired_offer_until': {'$gt': now}}):
         uid = user['user_id']
         until = utc_datetime(user.get('expired_offer_until'))
