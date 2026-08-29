@@ -35,14 +35,14 @@ def premium_category_menu():
     return InlineKeyboardMarkup([
         [btn("🎬 MOVIE PREMIUM", callback_data="category:movie", style=SUCCESS)],
         [btn("🔞 18+ PREMIUM", callback_data="category:adult", style=SUCCESS)],
-        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+        [btn("🔴 CANCEL", callback_data="close_data", style=DANGER)],
     ])
 
 
 def adult_purchase_menu():
     return InlineKeyboardMarkup([
         [btn("➕ EXTEND 18+ PREMIUM", callback_data="adult_extend", style=SUCCESS)],
-        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+        [btn("🔴 CANCEL", callback_data="close_data", style=DANGER)],
     ])
 
 
@@ -51,7 +51,7 @@ def premium_purchase_menu():
 
     return InlineKeyboardMarkup([
         [btn("➕ EXTEND PREMIUM", callback_data="extend_premium", style=SUCCESS)],
-        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+        [btn("🔴 CANCEL", callback_data="close_data", style=DANGER)],
     ])
 
 
@@ -79,7 +79,7 @@ def plans_menu(credits=0, expired=False, callback_prefix="plan", plans=None):
         ])
 
     rows.append([
-        btn("🔴 CANCEL", callback_data="home", style=DANGER)
+        btn("🔴 CANCEL", callback_data="close_data", style=DANGER)
     ])
     return InlineKeyboardMarkup(rows)
 
