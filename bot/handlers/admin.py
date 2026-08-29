@@ -331,8 +331,8 @@ async def offer_input(update, context):
         if len(parts) != len(PLANS):
             return await update.message.reply_text(
                 bold_small_caps(
-                    f'❌ Please send exactly {len(PLANS)} values in this order:\\n' +
-                    '\\n'.join(f'{i + 1}. {p["name"]}' for i, p in enumerate(PLANS))
+                    f'❌ Please send exactly {len(PLANS)} values in this order:\n' +
+                    '\n'.join(f'{i + 1}. {p["name"]}' for i, p in enumerate(PLANS))
                 ),
                 parse_mode='HTML'
             )
@@ -413,9 +413,9 @@ async def offer_input(update, context):
         context.user_data.pop('offer_setup', None)
         await update.message.reply_text(
             bold_small_caps(
-                f'✅ <b>ALL PLANS OFFERS ACTIVATED</b>\\n\\n'
-                f'{values_text}\\n\\n'
-                f'📝 {state["label"] or "No label"}\\n'
+                f'✅ <b>ALL PLANS OFFERS ACTIVATED</b>\n\n'
+                f'{values_text}\n\n'
+                f'📝 {state["label"] or "No label"}\n'
                 f'⏰ Expiry: {expiry_text}'
             ),
             parse_mode='HTML'
@@ -536,15 +536,15 @@ async def check_premium(update, context):
 
         if user.get('premium_status') and utc_aware(user.get('premium_expiry')) and utc_aware(user.get('premium_expiry')) > now:
             expiry = utc_aware(user.get('premium_expiry'))
-            rows.append(f'🎬 MOVIE PREMIUM\\n👤 Name: {display}\\n🆔 ID: {uid}\\n🏷️ Plan: {user.get("premium_plan_name") or user.get("premium_plan") or "Premium"}\\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\\n')
+            rows.append(f'🎬 MOVIE PREMIUM\n👤 Name: {display}\n🆔 ID: {uid}\n🏷️ Plan: {user.get("premium_plan_name") or user.get("premium_plan") or "Premium"}\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\n')
 
         if user.get('adult_premium_status') and utc_aware(user.get('adult_premium_expiry')) and utc_aware(user.get('adult_premium_expiry')) > now:
             expiry = utc_aware(user.get('adult_premium_expiry'))
-            rows.append(f'🔞 18+ PREMIUM\\n👤 Name: {display}\\n🆔 ID: {uid}\\n🏷️ Plan: {user.get("adult_premium_plan_name") or user.get("adult_premium_plan") or "Premium"}\\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\\n')
+            rows.append(f'🔞 18+ PREMIUM\n👤 Name: {display}\n🆔 ID: {uid}\n🏷️ Plan: {user.get("adult_premium_plan_name") or user.get("adult_premium_plan") or "Premium"}\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\n')
 
     if not rows:
         return await update.message.reply_text(bold_small_caps('📋 Koi active premium user data nahi mila.'), parse_mode='HTML')
-    text = f'💎 ACTIVE PREMIUM USERS — {len(rows)}\\n\\n' + '\\n'.join(rows)
+    text = f'💎 ACTIVE PREMIUM USERS — {len(rows)}\n\n' + '\n'.join(rows)
     if len(text) <= 3500:
         return await update.message.reply_text(bold_small_caps(text), parse_mode='HTML')
     path = Path('/tmp/premium.txt')

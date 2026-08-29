@@ -87,10 +87,10 @@ async def show_subscription_status(message, user, category="movie"):
     # The bot instance is not exposed consistently by Message, so group status is
     # refreshed in status handlers instead.
     text = (
-        f"📊 <b>{group} Subscription</b>\\n\\n"
-        "✅ Status: <b>Active</b>\\n"
-        f"📋 Plan: <b>{user.get(prefix + 'premium_plan_name') or plan_id}</b>\\n"
-        f"📅 Expires on: <b>{expiry_utc.astimezone().strftime('%d/%m/%Y') if expiry_utc else 'N/A'}</b>\\n"
+        f"📊 <b>{group} Subscription</b>\n\n"
+        "✅ Status: <b>Active</b>\n"
+        f"📋 Plan: <b>{user.get(prefix + 'premium_plan_name') or plan_id}</b>\n"
+        f"📅 Expires on: <b>{expiry_utc.astimezone().strftime('%d/%m/%Y') if expiry_utc else 'N/A'}</b>\n"
         f"⏳ Days Remaining: <b>{days_remaining} days</b>"
     )
     return await safe_edit_message(message, text, reply_markup=adult_purchase_menu() if category == 'adult' else premium_purchase_menu())
@@ -98,17 +98,17 @@ async def show_subscription_status(message, user, category="movie"):
 async def show_plan_list(message, user, extension=False, category="movie"):
     if category == "adult":
         plans = ADULT_PLANS
-        text = "🔞 <b>18+ Premium Plans</b>\\n\\n⭐ Choose your 18+ Premium Plan:"
+        text = "🔞 <b>18+ Premium Plans</b>\n\n⭐ Choose your 18+ Premium Plan:"
         prefix = "adult_extend_plan" if extension else "adult_plan"
         return await safe_edit_message(message, text, reply_markup=plans_menu(0, False, prefix, plans=plans))
     credits = int(user.get("discount_credits", 0)) if user else 0
     expired = expired_offer_active(user) and not extension
     if expired:
-        text = f"🔥 Your premium recently expired!\\n\\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\\n⏳ Offer valid for only 3 days after expiry.\\n\\n⭐ Choose your Premium Plan:"
+        text = f"🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:"
     elif extension:
-        text = '➕ Extend your Movie Premium\\n\\n⭐ Choose the plan you want to add:'
+        text = '➕ Extend your Movie Premium\n\n⭐ Choose the plan you want to add:'
     else:
-        text = '⭐ Choose your Movie Premium Plan:\\n\\n🎁 5% discount available.' if credits else '⭐ Choose your Movie Premium Plan:'
+        text = '⭐ Choose your Movie Premium Plan:\n\n🎁 5% discount available.' if credits else '⭐ Choose your Movie Premium Plan:'
     prefix = 'extend_plan' if extension else 'plan'
     return await safe_edit_message(message, text, reply_markup=plans_menu(credits, expired=expired, callback_prefix=prefix, plans=PLANS))
 
@@ -186,9 +186,9 @@ async def adult_plan(update, context):
         if expiry <= now: return await show_plan_list(q.message, user, category="adult")
     await upsert_user(q.from_user.id, pending_plan=pid, pending_category="adult", pending_purchase_type="extension" if extension else "new")
     title = "➕ Extend 18+ Premium" if extension else f"🔞 {p['name']}"
-    extra = "\\n📝 New days will be added to your current remaining 18+ premium." if extension else ""
-    text = f"<b>{title}\\n\\n⏳ Added validity: {p['days']} days{extra}\\n💰 Pay: ₹{p['price']}\\n\\n💳 UPI ID: <code>{UPI_ID}</code>\\n👤 Name: {UPI_NAME}\\n\\n1️⃣ Pay exact amount.\\n2️⃣ Tap I HAVE PAID.\\n3️⃣ Send payment screenshot.</b>"
-    await q.message.reply_photo(photo=str(PAYMENT_QR_PATH), caption=text, parse_mode='HTML',
+    extra = "\n📝 New days will be added to your current remaining 18+ premium." if extension else ""
+    text = f"{title}\n\n⏳ Added validity: {p['days']} days{extra}\n💰 Pay: ₹{p['price']}\n\n💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot."
+    await q.message.reply_photo(photo=str(PAYMENT_QR_PATH), caption=bold_small_caps(text), parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🟢 I HAVE PAID', callback_data=f'paid_adult:{pid}:extend' if extension else f'paid_adult:{pid}', style='success')],
                                             [InlineKeyboardButton('🔴 CANCEL', callback_data='close_data', style='danger')]]))
 
@@ -215,12 +215,12 @@ async def plan(update, context):
     offer_line = ''
     if offer['active']:
         if offer['type'] == 'extra_days':
-            offer_line = f"🔥 OFFER: +{offer['value']} extra days" + (f" — {offer['label']}" if offer['label'] else '') + '\\n'
+            offer_line = f"🔥 OFFER: +{offer['value']} extra days" + (f" — {offer['label']}" if offer['label'] else '') + '\n'
         elif offer['type'] == 'discount':
-            offer_line = f"🔥 OFFER: {offer['value']}% OFF" + (f" — {offer['label']}" if offer['label'] else '') + '\\n'
-    discount_text = f"🔥 Expired-user offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\\n💰 Original: ₹{offer['price']}\\n💵 Pay: ₹{final}\\n\\n" if discount_kind == 'expired' else (f"🎁 Referral discount: 5%\\n💰 Original: ₹{offer['price']}\\n💵 Pay: ₹{final}\\n\\n" if discount_kind == 'referral' else f'💰 Pay: ₹{final}\\n\\n')
+            offer_line = f"🔥 OFFER: {offer['value']}% OFF" + (f" — {offer['label']}" if offer['label'] else '') + '\n'
+    discount_text = f"🔥 Expired-user offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n💰 Original: ₹{offer['price']}\n💵 Pay: ₹{final}\n\n" if discount_kind == 'expired' else (f"🎁 Referral discount: 5%\n💰 Original: ₹{offer['price']}\n💵 Pay: ₹{final}\n\n" if discount_kind == 'referral' else f'💰 Pay: ₹{final}\n\n')
     title = f"➕ Extend {p['name']} Premium" if extension else f"⭐ {p['name']} Premium"
-    text = f"<b>{title}\\n\\n⏳ Added validity: {offer['days']} days\\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\\n👤 Name: {UPI_NAME}\\n\\n1️⃣ Pay exact amount.\\n2️⃣ Tap I HAVE PAID.\\n3️⃣ Send payment screenshot as photo or document.</b>"
+    text = f"<b>{title}\n\n⏳ Added validity: {offer['days']} days\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot as photo or document.</b>"
     callback = f'paid:{pid}:extend' if extension else f'paid:{pid}'
     await q.message.reply_photo(photo=str(PAYMENT_QR_PATH), caption=text, parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🟢 I HAVE PAID', callback_data=callback, style='success')],[InlineKeyboardButton('🔴 CANCEL', callback_data='close_data', style='danger')]]))
@@ -244,11 +244,12 @@ async def paid_adult(update, context):
         if expiry <= now: return await q.answer("18+ Premium has expired.", show_alert=True)
     await upsert_user(q.from_user.id, pending_plan=pid, pending_category="adult", pending_purchase_type="extension" if extension else "new")
     await q.message.reply_text(
-            f"<b>📸 18+ Premium payment screenshot upload karein.</b>\\n\\n"
-            f"<b>Plan: {p['name']} ({p['days']} days · ₹{p['price']})</b>\\n\\n"
-            "<b>Ab payment screenshot photo/document bhejiye.</b>\\n"
-            "<b>🚫 Fake screenshot upload karne par permanent ban ho sakta hai.</b>"
-        ,
+        bold_small_caps(
+            f"📸 18+ Premium payment screenshot upload karein.\n\n"
+            f"Plan: {p['name']} ({p['days']} days · ₹{p['price']})\n\n"
+            "Ab payment screenshot photo/document bhejiye.\n"
+            "🚫 Fake screenshot upload karne par permanent ban ho sakta hai."
+        ),
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ Cancel Upload', callback_data='cancel_upload', style='danger')]]),
         parse_mode='HTML'
     )
@@ -284,7 +285,7 @@ async def paid(update, context):
     await upsert_user(q.from_user.id, pending_plan=pid, pending_category='movie', pending_purchase_type='extension' if extension else 'new')
     keyboard = [[InlineKeyboardButton('❌ Cancel Upload', callback_data='cancel_upload', style='danger')]]
     mode_text = 'Premium extension' if extension else 'Movie Premium'
-    await q.message.reply_text((f'📸 Payment screenshot upload karein\n\nAapne {mode_text} select kiya hai.\n{price_line}\n\nAb payment screenshot photo/document bhejiye.\n\n🚫 Agar aapne fake screenshot upload kiya to aap hamesha ke liye ban ho jaoge.'), reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+    await q.message.reply_text(bold_small_caps(f'📸 Payment screenshot upload karein\n\nAapne {mode_text} select kiya hai.\n{price_line}\n\nAb payment screenshot photo/document bhejiye.\n\n🚫 Agar aapne fake screenshot upload kiya to aap hamesha ke liye ban ho jaoge.'), reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
 async def cancel_upload(update, context):
     q = update.callback_query
@@ -303,10 +304,10 @@ async def pending_payment_for_user(uid, category=None):
 
 async def send_pending_message(message, plan_name=None):
     plan_title = f' {plan_name}' if plan_name else ''
-    await message.reply_text(f'<b>⏳ Movie Premium{plan_title} ke liye request pehle se pending hai.\n\nAdmin approval ka wait karein — bar bar screenshot bhejne ki zarurat nahi.</b>', reply_markup=payment_pending_menu(), parse_mode='HTML')
+    await message.reply_text(bold_small_caps(f'⏳ Movie Premium{plan_title} ke liye request pehle se pending hai.\n\nAdmin approval ka wait karein — bar bar screenshot bhejne ki zarurat nahi.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
 async def send_direct_screenshot_message(message):
-    await message.reply_text('<b>⚠️ Screenshot upload karne se pehle Check Plans me category select karein.\n\nFlow: Buy Plans → category choose karein → plan ke Paid button pe tap karein → screenshot upload karein.</b>', reply_markup=payment_pending_menu(), parse_mode='HTML')
+    await message.reply_text(bold_small_caps('⚠️ Screenshot upload karne se pehle Check Plans me category select karein.\n\nFlow: Buy Plans → category choose karein → plan ke Paid button pe tap karein → screenshot upload karein.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
 async def store_and_delete_proof(message, context, uid, payment_id=None):
     """Back up the user's proof to the private channel, then delete the PM copy."""
@@ -316,12 +317,12 @@ async def store_and_delete_proof(message, context, uid, payment_id=None):
         name = ' '.join((x for x in [message.from_user.first_name, message.from_user.last_name] if x)).strip() or 'Unknown'
         username = f'@{message.from_user.username}' if message.from_user.username else 'No username'
         proof_type = 'PHOTO' if message.photo else 'DOCUMENT'
-        backup_caption = f'<b>🛡️ PAYMENT PROOF BACKUP\n\n🆔 USER ID: {uid}\n👤 NAME: {name}\n🔗 USERNAME: {username}\n📎 TYPE: {proof_type}</b>\n'
+        backup_caption = f'🛡️ PAYMENT PROOF BACKUP\n\n🆔 USER ID: {uid}\n👤 NAME: {name}\n🔗 USERNAME: {username}\n📎 TYPE: {proof_type}\n'
         if payment_id:
             backup_caption += f'💳 PAYMENT ID: {payment_id}\n'
         if message.caption:
             backup_caption += f'\n📝 ORIGINAL CAPTION:\n{message.caption}'
-        await context.bot.copy_message(chat_id=PAYMENT_PROOF_CHANNEL_ID, from_chat_id=message.chat_id, message_id=message.message_id, caption=backup_caption, parse_mode='HTML')
+        await context.bot.copy_message(chat_id=PAYMENT_PROOF_CHANNEL_ID, from_chat_id=message.chat_id, message_id=message.message_id, caption=bold_small_caps(backup_caption), parse_mode='HTML')
         await message.delete()
         return True
     except Exception as e:
@@ -376,20 +377,20 @@ async def screenshot(update, context):
     full_name = ' '.join((x for x in [update.effective_user.first_name, update.effective_user.last_name] if x)).strip() or 'Unknown'
     username = f'@{update.effective_user.username}' if update.effective_user.username else 'No username'
     purchase_label = ('18+ PREMIUM PAYMENT' if category == 'adult' else 'PREMIUM EXTENSION PAYMENT') if purchase_type == 'extension' else ('18+ PREMIUM PAYMENT' if category == 'adult' else 'NEW PREMIUM PAYMENT')
-    caption = f"<b>💳 {purchase_label}\n\n🆔 Payment ID: `{payment_id}`\n👤 Name: {full_name}\n🔗 Username: {username}\n🆔 User ID: `{uid}`\n📦 Plan: {p['name']}\n🧾 Type: {'Extension' if purchase_type == 'extension' else 'New Premium'}\n💰 Original: ₹{p['price']}\n🎁 Discount: {discount_label}\n⏳ Days: {offer['days']}\n💵 Expected: ₹{final}\n📎 Proof type: {proof_type}\n🕐 Submitted: {created_at.strftime('%d-%m-%Y %H:%M UTC')}\n\nApprove or reject using the buttons below.</b>"
+    caption = f"💳 {purchase_label}\n\n🆔 Payment ID: `{payment_id}`\n👤 Name: {full_name}\n🔗 Username: {username}\n🆔 User ID: `{uid}`\n📦 Plan: {p['name']}\n🧾 Type: {'Extension' if purchase_type == 'extension' else 'New Premium'}\n💰 Original: ₹{p['price']}\n🎁 Discount: {discount_label}\n⏳ Days: {offer['days']}\n💵 Expected: ₹{final}\n📎 Proof type: {proof_type}\n🕐 Submitted: {created_at.strftime('%d-%m-%Y %H:%M UTC')}\n\nApprove or reject using the buttons below."
     from bot.keyboards import admin_menu
     for aid in ADMIN_IDS:
         try:
             if proof_type == 'photo':
-                await context.bot.send_photo(aid, proof_file_id, caption=caption, parse_mode='HTML', reply_markup=admin_menu(payment_id))
+                await context.bot.send_photo(aid, proof_file_id, caption=bold_small_caps(caption), parse_mode='HTML', reply_markup=admin_menu(payment_id))
             else:
-                await context.bot.send_document(aid, proof_file_id, caption=caption, parse_mode='HTML', reply_markup=admin_menu(payment_id))
+                await context.bot.send_document(aid, proof_file_id, caption=bold_small_caps(caption), parse_mode='HTML', reply_markup=admin_menu(payment_id))
         except Exception as e:
             print(f'Admin notify error: {e}', flush=True)
     plan_line = f"{'18+ ' if category == 'adult' else ''}Plan: {p['name']} ({offer['days']} days · ₹{final})"
     if purchase_type == 'extension':
         plan_line += ' · Extension'
-    await context.bot.send_message(chat_id=uid, text=f'<b>✅ Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.</b>', reply_markup=payment_pending_menu(), parse_mode='HTML')
+    await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
 async def _subscription_status_text(user, bot, uid):
     lines = ["📊 <b>Your Subscription Status</b>", ""]
@@ -420,7 +421,7 @@ async def _subscription_status_text(user, bot, uid):
         ]
     if not found:
         return "🔴 No active premium membership."
-    return "\\n".join(lines).strip()
+    return "\n".join(lines).strip()
 
 async def status(update, context):
     uid = update.effective_user.id
