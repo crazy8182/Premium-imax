@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.config import ADMIN_IDS, PLAN_MAP, offer_details
+from bot.config import ADMIN_IDS, PLAN_MAP, ADULT_PLAN_MAP, offer_details
 from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import make_invite, remove_member
 from bot.services.formatting import bold_small_caps
@@ -29,30 +29,44 @@ async def approve(update, context):
     pmt = await get_payment(pid)
     if not pmt or pmt.get('status') != 'pending':
         return await q.answer('Already processed.', show_alert=True)
-    plan = PLAN_MAP[pmt['plan_id']]
-    offer_days = int(pmt.get('offer_days') or offer_details(plan)['days'])
+    category = pmt.get('category', 'movie')
+    is_adult = category == 'adult'
+    plan_map = ADULT_PLAN_MAP if is_adult else PLAN_MAP
+    plan = plan_map[pmt['plan_id']]
+    offer_days = int(pmt.get('offer_days') or plan['days'])
     now = datetime.now(timezone.utc)
     user = await get_user(pmt['user_id'])
     purchase_type = pmt.get('purchase_type', 'new')
-    current_expiry = utc_aware(user.get('premium_expiry')) if user else None
-    is_extension = purchase_type == 'extension' and user and user.get('premium_status') and current_expiry and current_expiry > now
-    if is_extension:
-        expiry = current_expiry + timedelta(days=offer_days)
-        await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_expiry=expiry, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
-    else:
-        expiry = now + timedelta(days=offer_days)
-        await upsert_user(pmt['user_id'], premium_status=True, premium_plan=pmt['plan_id'], premium_plan_name=plan['name'], premium_start=now, premium_expiry=expiry, joined_group=False, last_reminder=None, approved_payment_id=pid, expired_offer_until=None, expired_offer_last_reminder=None, expired_offer_reminders_sent=0)
-    await sync_auto_filter_premium(pmt['user_id'], expiry)
+    prefix = 'adult_' if is_adult else ''
+    current_expiry = utc_aware(user.get(prefix + 'premium_expiry')) if user else None
+    is_extension = purchase_type == 'extension' and user and user.get(prefix + 'premium_status') and current_expiry and current_expiry > now
+    common = {
+        prefix + 'premium_status': True,
+        prefix + 'premium_plan': pmt['plan_id'],
+        prefix + 'premium_plan_name': plan['name'],
+        prefix + 'premium_expiry': (current_expiry + timedelta(days=offer_days)) if is_extension else (now + timedelta(days=offer_days)),
+        prefix + 'last_reminder': None,
+        prefix + 'approved_payment_id': pid,
+        prefix + 'expired_offer_until': None,
+    }
+    if not is_extension:
+        common[prefix + 'premium_start'] = now
+        common[prefix + 'joined_group'] = False
+    expiry = common[prefix + 'premium_expiry']
+    await upsert_user(pmt['user_id'], **common)
+    # ONLY Movie Premium is synchronized to Auto Filter. 18+ is fully independent.
+    if not is_adult:
+        await sync_auto_filter_premium(pmt['user_id'], expiry)
     if pmt.get('discount_credit_used'):
         await users.update_one({'user_id': pmt['user_id'], 'discount_credits': {'$gt': 0}}, {'$inc': {'discount_credits': -1}})
     referrer = await award_referral(pmt['user_id'])
     await update_payment(pid, status='approved', approved_by=q.from_user.id, approved_at=now)
     try:
-        if is_extension and user.get('joined_group'):
+        if is_extension and user.get(('adult_' if is_adult else '') + 'joined_group'):
             await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium Extended!\n\n📦 {plan['name']}\n➕ Added: {offer_days} days\n⏰ New Expiry: {expiry}"), parse_mode='HTML')
         else:
-            link = await make_invite(context.bot, pmt['user_id'])
-            sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 Premium {'Extended' if is_extension else 'Activated'}!\n\n📦 {plan['name']}\n⏳ Added validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+            link = await make_invite(context.bot, pmt['user_id'], category)
+            sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 {'18+ Premium' if is_adult else 'Movie Premium'} {'Extended' if is_extension else 'Activated'}!\n\n📦 {plan['name']}\n⏳ Added validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
             await save_premium_invite_message(pmt['user_id'], link, sent.message_id, sent.chat_id)
     except Exception as e:
         print(f'Activation message error: {e}', flush=True)
@@ -88,7 +102,7 @@ async def reject(update, context):
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
-    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/check_premium\n/remove USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n/check_premium\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id):
@@ -104,11 +118,12 @@ async def pending(update, context):
         name = ' '.join((x for x in [first, last] if x)).strip() or 'Unknown'
         username = p.get('username') or user.get('username')
         username_text = f'@{username}' if username else 'No username'
-        details = f"💳 <b>PENDING PREMIUM PAYMENT</b>\n\n🆔 Payment ID: <code>{p.get('payment_id')}</code>\n👤 Name: {name}\n🔗 Username: {username_text}\n🆔 User ID: <code>{uid}</code>\n📦 Plan: {p.get('plan_name', 'Premium')}\n💰 Amount: ₹{p.get('amount', 0)}\n⏳ Days: {p.get('offer_days', 0)}\n📎 Proof: {p.get('proof_type', 'unknown')}\n"
+        details = f"💳 <b>PENDING {'18+ ' if p.get('category') == 'adult' else ''}PREMIUM PAYMENT</b>\n\n🆔 Payment ID: <code>{p.get('payment_id')}</code>\n👤 Name: {name}\n🔗 Username: {username_text}\n🆔 User ID: <code>{uid}</code>\n📦 Plan: {p.get('plan_name', 'Premium')}\n💰 Amount: ₹{p.get('amount', 0)}\n⏳ Days: {p.get('offer_days', 0)}\n📎 Proof: {p.get('proof_type', 'unknown')}\n"
         if p.get('created_at'):
             try:
                 created = utc_aware(p['created_at'])
                 details += f"🕐 Submitted: {created.strftime('%d-%m-%Y %H:%M UTC')}\n"
+                details += f"🏷️ Category: {'18+ Premium' if p.get('category') == 'adult' else 'Movie Premium'}\n"
             except Exception:
                 pass
         try:
@@ -159,10 +174,34 @@ async def remove_cmd(update, context):
     if len(context.args) != 1:
         return await update.message.reply_text(bold_small_caps('/remove USER_ID'), parse_mode='HTML')
     uid = int(context.args[0])
-    await remove_member(context.bot, uid)
+    await remove_member(context.bot, uid, "movie")
     await upsert_user(uid, premium_status=False, joined_group=False)
     await sync_auto_filter_premium(uid, None)
     await update.message.reply_text(bold_small_caps('Removed and premium disabled.'), parse_mode='HTML')
+async def manual_adult_premium(update, context):
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 2:
+        return await update.message.reply_text(bold_small_caps('/premium18 USER_ID DAYS'), parse_mode='HTML')
+    uid, days = int(context.args[0]), int(context.args[1])
+    now = datetime.now(timezone.utc)
+    expiry = now + timedelta(days=days)
+    await upsert_user(uid, adult_premium_status=True, adult_premium_plan='manual', adult_premium_plan_name=f'Manual {days} Days', adult_premium_start=now, adult_premium_expiry=expiry, adult_joined_group=False, adult_last_reminder=None)
+    link = await make_invite(context.bot, uid, "adult")
+    sent = await context.bot.send_message(uid, bold_small_caps(f'🟢 18+ Premium activated until {expiry}'), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
+    await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+    await update.message.reply_text(bold_small_caps('18+ Premium activated. Movie Premium unchanged.'), parse_mode='HTML')
+
+async def remove_adult_cmd(update, context):
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 1:
+        return await update.message.reply_text(bold_small_caps('/remove18 USER_ID'), parse_mode='HTML')
+    uid = int(context.args[0])
+    await remove_member(context.bot, uid, "adult")
+    await upsert_user(uid, adult_premium_status=False, adult_joined_group=False)
+    await update.message.reply_text(bold_small_caps('18+ Premium removed. Movie Premium unchanged.'), parse_mode='HTML')
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
 from bot.config import PLANS, offer_details
@@ -476,56 +515,39 @@ async def offer_list_cb(update, context):
     await q.message.edit_text(bold_small_caps(text), parse_mode='HTML', reply_markup=_offer_manager_keyboard())
 
 async def check_premium(update, context):
-    """Show all users who have a premium expiry record.
-    Short results are sent as a Telegram message; long results as premium.txt.
-    """
+    """Show currently active Movie and 18+ memberships separately."""
     if not admin_only(update.effective_user.id):
         return
     rows = []
     now = datetime.now(timezone.utc)
-    # Show ONLY currently active premium users.
-    # Expired users and users with premium_status=False are excluded directly
-    # by MongoDB instead of being shown as EXPIRED in the report.
-    cursor = users.find(
-        {
-            'premium_status': True,
-            'premium_expiry': {'$exists': True, '$ne': None, '$gt': now},
-        },
-        {
-            'user_id': 1,
-            'first_name': 1,
-            'last_name': 1,
-            'username': 1,
-            'premium_expiry': 1,
-            'premium_status': 1,
-            'premium_plan_name': 1,
-            'premium_plan': 1,
-        }
-    ).sort('premium_expiry', 1)
+    cursor = users.find({
+        '$or': [
+            {'premium_status': True, 'premium_expiry': {'$gt': now}},
+            {'adult_premium_status': True, 'adult_premium_expiry': {'$gt': now}},
+        ]
+    }).sort('user_id', 1)
     async for user in cursor:
         uid = user.get('user_id', '')
         first = (user.get('first_name') or '').strip()
         last = (user.get('last_name') or '').strip()
-        name = ' '.join((x for x in [first, last] if x)).strip() or 'Unknown'
+        name = ' '.join(x for x in [first, last] if x).strip() or 'Unknown'
         username = user.get('username')
-        display_name = f'{name} (@{username})' if username else name
-        expiry = utc_aware(user.get('premium_expiry'))
-        if expiry:
-            expiry_text = expiry.strftime('%d-%m-%Y %H:%M UTC')
-            status = 'ACTIVE' if expiry and expiry > now and user.get('premium_status') else 'EXPIRED'
-        else:
-            expiry_text = 'N/A'
-            status = 'UNKNOWN'
-        plan = user.get('premium_plan_name') or user.get('premium_plan') or 'Premium'
-        rows.append(f'👤 Name: {display_name}\n🆔 ID: {uid}\n🏷️ Plan: {plan}\n📅 Expire: {expiry_text}\n📌 Status: {status}\n')
+        display = f'{name} (@{username})' if username else name
+
+        if user.get('premium_status') and utc_aware(user.get('premium_expiry')) and utc_aware(user.get('premium_expiry')) > now:
+            expiry = utc_aware(user.get('premium_expiry'))
+            rows.append(f'🎬 MOVIE PREMIUM\\n👤 Name: {display}\\n🆔 ID: {uid}\\n🏷️ Plan: {user.get("premium_plan_name") or user.get("premium_plan") or "Premium"}\\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\\n')
+
+        if user.get('adult_premium_status') and utc_aware(user.get('adult_premium_expiry')) and utc_aware(user.get('adult_premium_expiry')) > now:
+            expiry = utc_aware(user.get('adult_premium_expiry'))
+            rows.append(f'🔞 18+ PREMIUM\\n👤 Name: {display}\\n🆔 ID: {uid}\\n🏷️ Plan: {user.get("adult_premium_plan_name") or user.get("adult_premium_plan") or "Premium"}\\n📅 Expire: {expiry.strftime("%d-%m-%Y %H:%M UTC")}\\n')
+
     if not rows:
-        return await update.message.reply_text(bold_small_caps('📋 Koi premium user data nahi mila.'), parse_mode='HTML')
-    header = f'💎 PREMIUM USERS — {len(rows)}\n\n'
-    text = header + '\n'.join(rows)
+        return await update.message.reply_text(bold_small_caps('📋 Koi active premium user data nahi mila.'), parse_mode='HTML')
+    text = f'💎 ACTIVE PREMIUM USERS — {len(rows)}\\n\\n' + '\\n'.join(rows)
     if len(text) <= 3500:
-        await update.message.reply_text(bold_small_caps(text), parse_mode='HTML')
-        return
+        return await update.message.reply_text(bold_small_caps(text), parse_mode='HTML')
     path = Path('/tmp/premium.txt')
     path.write_text(text, encoding='utf-8')
     with path.open('rb') as f:
-        await update.message.reply_document(document=f, filename='premium.txt', caption=bold_small_caps(f'💎 Premium users: {len(rows)}\n📄 Complete details attached.'), parse_mode='HTML')
+        await update.message.reply_document(document=f, filename='premium.txt', caption=bold_small_caps(f'💎 Active premium records: {len(rows)}'), parse_mode='HTML')

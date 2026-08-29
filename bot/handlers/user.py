@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot.config import PLAN_MAP, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID
+from bot.config import PLAN_MAP, ADULT_PLAN_MAP, PLANS, ADULT_PLANS, UPI_ID, UPI_NAME, PAYMENT_QR_PATH, ADMIN_IDS, offer_details, EXPIRED_DISCOUNT_PERCENT, PAYMENT_PROOF_CHANNEL_ID, PREMIUM_GROUP_ID, ADULT_PREMIUM_GROUP_ID
 from bot.db import get_user, upsert_user, create_payment, payments, remove_premium_invite_message
-from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu, premium_purchase_menu
+from bot.keyboards import plans_menu, payment_menu, main_menu, join_menu, offers_menu, premium_purchase_menu, premium_category_menu, adult_purchase_menu
 from bot.services.premium import is_member, make_invite
 from bot.services.formatting import bold_small_caps
 
@@ -62,64 +62,89 @@ def pricing(plan, credits=0, user=None):
 def price(plan, credits, user=None):
     return pricing(plan, credits, user)[1]
 
-async def show_purchase_options(message, user):
-    if user and user.get('premium_status'):
-        expiry = user.get('premium_expiry')
-        now = datetime.now(timezone.utc)
-        if isinstance(expiry, datetime):
-            if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry > now:
-                from bot.keyboards import premium_purchase_menu
-                expiry_utc = expiry if expiry.tzinfo else expiry.replace(tzinfo=timezone.utc)
-                expiry_text = expiry_utc.astimezone().strftime('%d/%m/%Y')
-                now = datetime.now(timezone.utc)
-                days_remaining = max(0, (expiry_utc - now).days)
-            else:
-                expiry_text = str(expiry or 'N/A')
-                days_remaining = 0
-                
-            joined = False
-            try:
-                joined = await is_member(bot, uid)
-                if joined != bool(user.get('joined_group')):
-                    await upsert_user(uid, joined_group=joined)
-            except Exception:
-                joined = bool(user.get('joined_group'))
-                plan_id = user.get('premium_plan') or 'Premium'
-                text = (
-                    "📊 **Your Subscription Status**\n\n"
-                    "✅ Status: **Active**\n"
-                    "📦 Active Plans: **1**\n\n"
-                    f"1. **Movie Premium**\n"
-                    f"📋 Plan: **{plan_id}**\n"
-                    f"📅 Expires on: **{expiry_text}**\n"
-                    f"⏳ Days Remaining: **{days_remaining} days**\n"
-                    f"👥 Group Status: *<b>{'🟢Joined' if joined else '🔴Not Joined'}</b>\n\n"
-                    f"➕ Extend Premium to add more days to your current membership."
-                )
-                return await safe_edit_message(message, text, reply_markup=premium_purchase_menu())
+async def show_purchase_options(message, user, category="movie"):
+    if not user:
+        return False
+    prefix = "adult_" if category == "adult" else ""
+    active = bool(user.get(prefix + "premium_status"))
+    expiry = user.get(prefix + "premium_expiry")
+    if active and isinstance(expiry, datetime):
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry > datetime.now(timezone.utc):
+            return await show_subscription_status(message, user, category)
     return False
 
-async def show_plan_list(message, user, extension=False):
-    credits = int(user.get('discount_credits', 0)) if user else 0
+async def show_subscription_status(message, user, category="movie"):
+    prefix = "adult_" if category == "adult" else ""
+    expiry = user.get(prefix + "premium_expiry")
+    expiry_utc = expiry if isinstance(expiry, datetime) else None
+    if expiry_utc and expiry_utc.tzinfo is None:
+        expiry_utc = expiry_utc.replace(tzinfo=timezone.utc)
+    days_remaining = max(0, (expiry_utc - datetime.now(timezone.utc)).days) if expiry_utc else 0
+    group = "18+ Group" if category == "adult" else "Movie Premium Group"
+    plan_id = user.get(prefix + "premium_plan") or "Premium"
+    # The bot instance is not exposed consistently by Message, so group status is
+    # refreshed in status handlers instead.
+    text = (
+        f"📊 <b>{group} Subscription</b>\\n\\n"
+        "✅ Status: <b>Active</b>\\n"
+        f"📋 Plan: <b>{user.get(prefix + 'premium_plan_name') or plan_id}</b>\\n"
+        f"📅 Expires on: <b>{expiry_utc.astimezone().strftime('%d/%m/%Y') if expiry_utc else 'N/A'}</b>\\n"
+        f"⏳ Days Remaining: <b>{days_remaining} days</b>"
+    )
+    return await safe_edit_message(message, text, reply_markup=adult_purchase_menu() if category == 'adult' else premium_purchase_menu())
+
+async def show_plan_list(message, user, extension=False, category="movie"):
+    if category == "adult":
+        plans = ADULT_PLANS
+        text = "🔞 <b>18+ Premium Plans</b>\\n\\n⭐ Choose your 18+ Premium Plan:"
+        prefix = "adult_extend_plan" if extension else "adult_plan"
+        return await safe_edit_message(message, text, reply_markup=plans_menu(0, False, prefix, plans=plans))
+    credits = int(user.get("discount_credits", 0)) if user else 0
     expired = expired_offer_active(user) and not extension
     if expired:
-        text = f"🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:"
+        text = f"🔥 Your premium recently expired!\\n\\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\\n⏳ Offer valid for only 3 days after expiry.\\n\\n⭐ Choose your Premium Plan:"
     elif extension:
-        text = '➕ Extend your Premium\n\n⭐ Choose the plan you want to add:'
+        text = '➕ Extend your Movie Premium\\n\\n⭐ Choose the plan you want to add:'
     else:
-        text = '⭐ Choose your Premium Plan:\n\n🎁 5% discount available.' if credits else '⭐ Choose your Premium Plan:'
+        text = '⭐ Choose your Movie Premium Plan:\\n\\n🎁 5% discount available.' if credits else '⭐ Choose your Movie Premium Plan:'
     prefix = 'extend_plan' if extension else 'plan'
-    return await safe_edit_message(message, text, reply_markup=plans_menu(credits, expired=expired, callback_prefix=prefix))
+    return await safe_edit_message(message, text, reply_markup=plans_menu(credits, expired=expired, callback_prefix=prefix, plans=PLANS))
 
 async def plans(update, context):
     q = update.callback_query
     await q.answer()
+    await safe_edit_message(q.message, '⭐ Select Premium Category:', reply_markup=premium_category_menu())
+
+async def movie_category(update, context):
+    q = update.callback_query
+    await q.answer()
     user = await get_user(q.from_user.id)
-    if await show_purchase_options(q.message, user):
+    if await show_purchase_options(q.message, user, "movie"):
         return
-    await show_plan_list(q.message, user, extension=False)
+    await show_plan_list(q.message, user, category="movie")
+
+async def adult_category(update, context):
+    q = update.callback_query
+    await q.answer()
+    user = await get_user(q.from_user.id)
+    if await show_purchase_options(q.message, user, "adult"):
+        return
+    await show_plan_list(q.message, user, category="adult")
+
+async def adult_extend(update, context):
+    q = update.callback_query
+    await q.answer()
+    user = await get_user(q.from_user.id)
+    expiry = user.get("adult_premium_expiry") if user else None
+    now = datetime.now(timezone.utc)
+    if user and user.get("adult_premium_status") and isinstance(expiry, datetime):
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry > now:
+            return await show_plan_list(q.message, user, extension=True, category="adult")
+    await show_plan_list(q.message, user, category="adult")
 
 async def extend_premium(update, context):
     q = update.callback_query
@@ -127,30 +152,45 @@ async def extend_premium(update, context):
     user = await get_user(q.from_user.id)
     expiry = user.get('premium_expiry') if user else None
     now = datetime.now(timezone.utc)
-    if not user or not user.get('premium_status') or not isinstance(expiry, datetime):
-        return await show_plan_list(q.message, user, extension=False)
-    if expiry.tzinfo is None:
-        expiry = expiry.replace(tzinfo=timezone.utc)
-    if expiry <= now:
-        return await show_plan_list(q.message, user, extension=False)
-    await show_plan_list(q.message, user, extension=True)
+    if user and user.get('premium_status') and isinstance(expiry, datetime):
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry > now:
+            return await show_plan_list(q.message, user, extension=True, category="movie")
+    await show_plan_list(q.message, user, extension=False, category="movie")
 
 async def plans_cmd(update, context):
     user = await get_user(update.effective_user.id)
-    if user and user.get('premium_status'):
-        expiry = user.get('premium_expiry')
+    await update.message.reply_text(
+        bold_small_caps('⭐ Select Premium Category:'),
+        reply_markup=premium_category_menu(),
+        parse_mode='HTML'
+    )
+
+async def adult_plan(update, context):
+    q = update.callback_query
+    await q.answer()
+    parts = q.data.split(':')
+    pid = parts[1]
+    extension = len(parts) > 2 and parts[2] == 'extend'
+    p = ADULT_PLAN_MAP.get(pid)
+    if not p:
+        return
+    user = await get_user(q.from_user.id)
+    if extension:
+        expiry = user.get("adult_premium_expiry") if user else None
         now = datetime.now(timezone.utc)
-        if isinstance(expiry, datetime):
-            if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            if expiry > now:
-                from bot.keyboards import premium_purchase_menu
-                await update.message.reply_text(bold_small_caps(f"🟢 Your Premium is active.\n\n⏰ Current expiry: {expiry}\n\n➕ Extend Premium to add more days to your current membership."), reply_markup=premium_purchase_menu(), parse_mode='HTML')
-                return
-    credits = int(user.get('discount_credits', 0)) if user else 0
-    expired = expired_offer_active(user)
-    text = f'🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:' if expired else '⭐ Choose your Premium Plan:'
-    await update.message.reply_text(bold_small_caps(text), reply_markup=plans_menu(credits, expired=expired), parse_mode='HTML')
+        if not user or not user.get("adult_premium_status") or not isinstance(expiry, datetime):
+            return await show_plan_list(q.message, user, category="adult")
+        if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry <= now: return await show_plan_list(q.message, user, category="adult")
+    await upsert_user(q.from_user.id, pending_plan=pid, pending_category="adult", pending_purchase_type="extension" if extension else "new")
+    title = "➕ Extend 18+ Premium" if extension else f"🔞 {p['name']}"
+    extra = "\\n📝 New days will be added to your current remaining 18+ premium." if extension else ""
+    text = f"{title}\\n\\n⏳ Added validity: {p['days']} days{extra}\\n💰 Pay: ₹{p['price']}\\n\\n💳 UPI ID: <code>{UPI_ID}</code>\\n👤 Name: {UPI_NAME}\\n\\n1️⃣ Pay exact amount.\\n2️⃣ Tap I HAVE PAID.\\n3️⃣ Send payment screenshot."
+    await q.message.reply_photo(photo=str(PAYMENT_QR_PATH), caption=bold_small_caps(text), parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🟢 I HAVE PAID', callback_data=f'paid_adult:{pid}:extend' if extension else f'paid_adult:{pid}', style='success')],
+                                            [InlineKeyboardButton('🔴 CANCEL', callback_data='close_data', style='danger')]]))
 
 async def plan(update, context):
     q = update.callback_query
@@ -167,35 +207,52 @@ async def plan(update, context):
         now = datetime.now(timezone.utc)
         if not user or not user.get('premium_status') or not isinstance(expiry, datetime):
             return await show_plan_list(q.message, user, extension=False)
-        if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
-        if expiry <= now:
-            return await show_plan_list(q.message, user, extension=False)
+        if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry <= now: return await show_plan_list(q.message, user, extension=False)
     credits = int(user.get('discount_credits', 0)) if user else 0
     pricing_user = None if extension else user
     offer, final, discount_kind = pricing(p, credits, pricing_user)
     offer_line = ''
     if offer['active']:
         if offer['type'] == 'extra_days':
-            offer_line = f"🔥 OFFER: +{offer['value']} extra days" + (f" — {offer['label']}" if offer['label'] else '') + '\n'
+            offer_line = f"🔥 OFFER: +{offer['value']} extra days" + (f" — {offer['label']}" if offer['label'] else '') + '\\n'
         elif offer['type'] == 'discount':
-            offer_line = f"🔥 OFFER: {offer['value']}% OFF" + (f" — {offer['label']}" if offer['label'] else '') + '\n'
-    if discount_kind == 'expired':
-        discount_text = f"🔥 Expired-user offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n💰 Original: ₹{offer['price']}\n💵 Pay: ₹{final}\n\n"
-    elif discount_kind == 'referral':
-        discount_text = f"🎁 Referral discount: 5%\n💰 Original: ₹{offer['price']}\n💵 Pay: ₹{final}\n\n"
-    else:
-        discount_text = f'💰 Pay: ₹{final}\n\n'
+            offer_line = f"🔥 OFFER: {offer['value']}% OFF" + (f" — {offer['label']}" if offer['label'] else '') + '\\n'
+    discount_text = f"🔥 Expired-user offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\\n💰 Original: ₹{offer['price']}\\n💵 Pay: ₹{final}\\n\\n" if discount_kind == 'expired' else (f"🎁 Referral discount: 5%\\n💰 Original: ₹{offer['price']}\\n💵 Pay: ₹{final}\\n\\n" if discount_kind == 'referral' else f'💰 Pay: ₹{final}\\n\\n')
     title = f"➕ Extend {p['name']} Premium" if extension else f"⭐ {p['name']} Premium"
-    extra = '\n📝 New days will be added to your current remaining premium days.' if extension else ''
-    text = f"<b>{title}\n\n⏳ Added validity: {offer['days']} days{extra}\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\n👤 Name: {UPI_NAME}\n\n1️⃣ Pay exact amount.\n2️⃣ Tap I HAVE PAID.\n3️⃣ Send payment screenshot as photo or document.</b>"
-    path = Path(PAYMENT_QR_PATH)
+    text = f"<b>{title}\\n\\n⏳ Added validity: {offer['days']} days\\n{offer_line}{discount_text}💳 UPI ID: <code>{UPI_ID}</code>\\n👤 Name: {UPI_NAME}\\n\\n1️⃣ Pay exact amount.\\n2️⃣ Tap I HAVE PAID.\\n3️⃣ Send payment screenshot as photo or document.</b>"
     callback = f'paid:{pid}:extend' if extension else f'paid:{pid}'
-    payment_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton('🟢 I HAVE PAID', callback_data=callback, style='success')], [InlineKeyboardButton('🔴 CANCEL', callback_data='close_data', style='danger')]])
-    if path.exists():
-        await q.message.reply_photo(photo=str(path), caption=text, parse_mode='HTML', reply_markup=payment_keyboard)
-    else:
-        await safe_edit_message(q.message, text, reply_markup=payment_keyboard)
+    await q.message.reply_photo(photo=str(PAYMENT_QR_PATH), caption=text, parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🟢 I HAVE PAID', callback_data=callback, style='success')],[InlineKeyboardButton('🔴 CANCEL', callback_data='close_data', style='danger')]]))
+
+async def paid_adult(update, context):
+    q = update.callback_query
+    await q.answer()
+    parts = q.data.split(':')
+    pid = parts[1]
+    extension = len(parts) > 2 and parts[2] == 'extend'
+    p = ADULT_PLAN_MAP.get(pid)
+    if not p:
+        return
+    user = await get_user(q.from_user.id)
+    if extension:
+        expiry = user.get("adult_premium_expiry") if user else None
+        now = datetime.now(timezone.utc)
+        if not user or not user.get("adult_premium_status") or not isinstance(expiry, datetime):
+            return await q.answer("18+ Premium is not active.", show_alert=True)
+        if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry <= now: return await q.answer("18+ Premium has expired.", show_alert=True)
+    await upsert_user(q.from_user.id, pending_plan=pid, pending_category="adult", pending_purchase_type="extension" if extension else "new")
+    await q.message.reply_text(
+        bold_small_caps(
+            f"📸 18+ Premium payment screenshot upload karein.\\n\\n"
+            f"Plan: {p['name']} ({p['days']} days · ₹{p['price']})\\n\\n"
+            "Ab payment screenshot photo/document bhejiye.\\n"
+            "🚫 Fake screenshot upload karne par permanent ban ho sakta hai."
+        ),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ Cancel Upload', callback_data='cancel_upload', style='danger')]]),
+        parse_mode='HTML'
+    )
 
 async def paid(update, context):
     q = update.callback_query
@@ -225,7 +282,7 @@ async def paid(update, context):
         price_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})\n🎁 5% referral discount applied."
     else:
         price_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})"
-    await upsert_user(q.from_user.id, pending_plan=pid, pending_purchase_type='extension' if extension else 'new')
+    await upsert_user(q.from_user.id, pending_plan=pid, pending_category='movie', pending_purchase_type='extension' if extension else 'new')
     keyboard = [[InlineKeyboardButton('❌ Cancel Upload', callback_data='cancel_upload', style='danger')]]
     mode_text = 'Premium extension' if extension else 'Movie Premium'
     await q.message.reply_text(bold_small_caps(f'📸 Payment screenshot upload karein\n\nAapne {mode_text} select kiya hai.\n{price_line}\n\nAb payment screenshot photo/document bhejiye.\n\n🚫 Agar aapne fake screenshot upload kiya to aap hamesha ke liye ban ho jaoge.'), reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
@@ -233,14 +290,17 @@ async def paid(update, context):
 async def cancel_upload(update, context):
     q = update.callback_query
     await q.answer('Upload cancelled.')
-    await upsert_user(q.from_user.id, pending_plan=None, pending_purchase_type=None)
+    await upsert_user(q.from_user.id, pending_plan=None, pending_category=None, pending_purchase_type=None)
     await safe_edit_message(q.message, f"👋 Welcome {q.from_user.first_name or 'User'}!\n\n⭐ Premium Membership\nChoose an option below:", reply_markup=main_menu())
 
 def payment_pending_menu():
     return InlineKeyboardMarkup([[InlineKeyboardButton('🏠 MAIN MENU', callback_data='home', style='primary')]])
 
-async def pending_payment_for_user(uid):
-    return await payments.find_one({'user_id': uid, 'status': 'pending'}, sort=[('created_at', 1)])
+async def pending_payment_for_user(uid, category=None):
+    query = {'user_id': uid, 'status': 'pending'}
+    if category:
+        query['category'] = category
+    return await payments.find_one(query, sort=[('created_at', 1)])
 
 async def send_pending_message(message, plan_name=None):
     plan_title = f' {plan_name}' if plan_name else ''
@@ -281,20 +341,26 @@ async def screenshot(update, context):
         else:
             await message.reply_text(bold_small_caps('⚠️ Payment proof backup channel is not configured. Your screenshot was NOT deleted for safety.'), parse_mode='HTML')
         return
-    existing = await pending_payment_for_user(uid)
+    user = await get_user(uid)
+    pid = user.get('pending_plan') if user else None
+    purchase_type = user.get('pending_purchase_type', 'new') if user else 'new'
+    category = user.get('pending_category', 'movie') if user else 'movie'
+    existing = await pending_payment_for_user(uid, category)
     if existing:
         existing_plan = existing.get('plan_name')
         await send_pending_message(message, existing_plan)
         return
-    user = await get_user(uid)
-    pid = user.get('pending_plan') if user else None
-    purchase_type = user.get('pending_purchase_type', 'new') if user else 'new'
-    if pid not in PLAN_MAP:
+    plan_map = ADULT_PLAN_MAP if category == 'adult' else PLAN_MAP
+    if pid not in plan_map:
         await send_direct_screenshot_message(message)
         return
-    p = PLAN_MAP[pid]
+    p = plan_map[pid]
     credits = int(user.get('discount_credits', 0)) if user else 0
-    offer, final, discount_kind = pricing(p, credits, user)
+    if category == 'adult':
+        offer = {'type': 'none', 'value': 0, 'label': '', 'days': p['days'], 'price': p['price']}
+        final, discount_kind = p['price'], 'normal'
+    else:
+        offer, final, discount_kind = pricing(p, credits, user)
     use_referral = discount_kind == 'referral'
     use_expired = discount_kind == 'expired'
     if message.photo:
@@ -305,12 +371,12 @@ async def screenshot(update, context):
         proof_file_id = message.document.file_id
     payment_id = uuid.uuid4().hex[:12].upper()
     created_at = datetime.now(timezone.utc)
-    await create_payment({'payment_id': payment_id, 'user_id': uid, 'username': update.effective_user.username, 'first_name': update.effective_user.first_name, 'last_name': update.effective_user.last_name, 'plan_id': pid, 'plan_name': p['name'], 'original_amount': p['price'], 'offer_type': offer['type'], 'offer_value': offer['value'], 'offer_label': offer['label'], 'offer_days': offer['days'], 'offer_price': offer['price'], 'discount_percent': EXPIRED_DISCOUNT_PERCENT if use_expired else 5 if use_referral else 0, 'discount_type': discount_kind, 'discount_credit_used': use_referral, 'expired_offer_used': use_expired, 'purchase_type': purchase_type, 'amount': final, 'status': 'pending', 'proof_type': proof_type, 'screenshot_file_id': proof_file_id, 'created_at': created_at})
-    await upsert_user(uid, pending_plan=None, pending_purchase_type=None)
+    await create_payment({'payment_id': payment_id, 'user_id': uid, 'username': update.effective_user.username, 'first_name': update.effective_user.first_name, 'last_name': update.effective_user.last_name, 'plan_id': pid, 'plan_name': p['name'], 'category': category, 'original_amount': p['price'], 'offer_type': offer['type'], 'offer_value': offer['value'], 'offer_label': offer['label'], 'offer_days': offer['days'], 'offer_price': offer['price'], 'discount_percent': EXPIRED_DISCOUNT_PERCENT if use_expired else 5 if use_referral else 0, 'discount_type': discount_kind, 'discount_credit_used': use_referral, 'expired_offer_used': use_expired, 'purchase_type': purchase_type, 'amount': final, 'status': 'pending', 'proof_type': proof_type, 'screenshot_file_id': proof_file_id, 'created_at': created_at})
+    await upsert_user(uid, pending_plan=None, pending_category=None, pending_purchase_type=None)
     discount_label = f'{EXPIRED_DISCOUNT_PERCENT}% Expired Offer' if use_expired else '5% Referral' if use_referral else 'None'
     full_name = ' '.join((x for x in [update.effective_user.first_name, update.effective_user.last_name] if x)).strip() or 'Unknown'
     username = f'@{update.effective_user.username}' if update.effective_user.username else 'No username'
-    purchase_label = 'PREMIUM EXTENSION PAYMENT' if purchase_type == 'extension' else 'NEW PREMIUM PAYMENT'
+    purchase_label = ('18+ PREMIUM PAYMENT' if category == 'adult' else 'PREMIUM EXTENSION PAYMENT') if purchase_type == 'extension' else ('18+ PREMIUM PAYMENT' if category == 'adult' else 'NEW PREMIUM PAYMENT')
     caption = f"💳 {purchase_label}\n\n🆔 Payment ID: `{payment_id}`\n👤 Name: {full_name}\n🔗 Username: {username}\n🆔 User ID: `{uid}`\n📦 Plan: {p['name']}\n🧾 Type: {'Extension' if purchase_type == 'extension' else 'New Premium'}\n💰 Original: ₹{p['price']}\n🎁 Discount: {discount_label}\n⏳ Days: {offer['days']}\n💵 Expected: ₹{final}\n📎 Proof type: {proof_type}\n🕐 Submitted: {created_at.strftime('%d-%m-%Y %H:%M UTC')}\n\nApprove or reject using the buttons below."
     from bot.keyboards import admin_menu
     for aid in ADMIN_IDS:
@@ -321,48 +387,46 @@ async def screenshot(update, context):
                 await context.bot.send_document(aid, proof_file_id, caption=bold_small_caps(caption), parse_mode='HTML', reply_markup=admin_menu(payment_id))
         except Exception as e:
             print(f'Admin notify error: {e}', flush=True)
-    plan_line = f"Plan: {p['name']} ({offer['days']} days · ₹{final})"
+    plan_line = f"{'18+ ' if category == 'adult' else ''}Plan: {p['name']} ({offer['days']} days · ₹{final})"
     if purchase_type == 'extension':
         plan_line += ' · Extension'
-    await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Movie Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
+    await context.bot.send_message(chat_id=uid, text=bold_small_caps(f'✅ Premium request submitted!\n\n📋 Selected Plan: {plan_line}\n\nAdmin aapki payment verify karke jaldi approval denge.\n\n🌙 10 PM–6 AM ke beech kiye gaye payments ka premium 7 AM ke baad add kiya jayega.\n\n⏱ Usually 20 minutes ke andar approval mil jata hai.'), reply_markup=payment_pending_menu(), parse_mode='HTML')
 
 async def _subscription_status_text(user, bot, uid):
-    """Build the detailed subscription status shown in My Premium / status."""
-    expiry = user.get('premium_expiry')
-    if isinstance(expiry, datetime):
-        # MongoDB may store timezone-naive UTC datetimes.
-        expiry_utc = expiry if expiry.tzinfo else expiry.replace(tzinfo=timezone.utc)
-        expiry_text = expiry_utc.astimezone().strftime('%d/%m/%Y')
-        now = datetime.now(timezone.utc)
-        days_remaining = max(0, (expiry_utc - now).days)
-    else:
-        expiry_text = str(expiry or 'N/A')
-        days_remaining = 0
-
-    joined = False
-    try:
-        joined = await is_member(bot, uid)
-        if joined != bool(user.get('joined_group')):
-            await upsert_user(uid, joined_group=joined)
-    except Exception:
-        joined = bool(user.get('joined_group'))
-
-    plan_id = user.get('premium_plan') or 'Premium'
-    return (
-        "📊 <b>Your Subscription Status</b>\n\n"
-        "✅ Status: <b>Active</b>\n"
-        "📦 Active Plans: <b>1</b>\n\n"
-        "1. <b>Movie Premium</b>\n"
-        f"📋 Plan: <b>{plan_id}</b>\n"
-        f"📅 Expires on: <b>{expiry_text}</b>\n"
-        f"⏳ Days Remaining: <b>{days_remaining} days</b>\n"
-        f"👥 Group Status: <b>{'🟢Joined' if joined else '🔴Not Joined'}</b>"
-    )
+    lines = ["📊 <b>Your Subscription Status</b>", ""]
+    found = 0
+    for category, label in (("movie", "🎬 Movie Premium"), ("adult", "🔞 18+ Premium")):
+        prefix = "" if category == "movie" else "adult_"
+        active = bool(user.get(prefix + "premium_status"))
+        expiry = user.get(prefix + "premium_expiry")
+        if not active or not isinstance(expiry, datetime):
+            continue
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry <= datetime.now(timezone.utc):
+            continue
+        found += 1
+        joined = await is_member(bot, uid, category)
+        if joined != bool(user.get(prefix + "joined_group")):
+            await upsert_user(uid, **{prefix + "joined_group": joined})
+        days_remaining = max(0, (expiry - datetime.now(timezone.utc)).days)
+        plan = user.get(prefix + "premium_plan_name") or user.get(prefix + "premium_plan") or "Premium"
+        lines += [
+            f"{label}",
+            f"📋 Plan: <b>{plan}</b>",
+            f"📅 Expires: <b>{expiry.astimezone().strftime('%d/%m/%Y')}</b>",
+            f"⏳ Remaining: <b>{days_remaining} days</b>",
+            f"👥 Group: <b>{'🟢 Joined' if joined else '🔴 Not Joined'}</b>",
+            ""
+        ]
+    if not found:
+        return "🔴 No active premium membership."
+    return "\\n".join(lines).strip()
 
 async def status(update, context):
     uid = update.effective_user.id
     user = await get_user(uid)
-    if not user or not user.get('premium_status'):
+    if not user:
         await update.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
         return
     text = await _subscription_status_text(user, context.bot, uid)
@@ -371,22 +435,22 @@ async def status(update, context):
 async def status_cb(update, context):
     q = update.callback_query
     await q.answer()
-    uid = q.from_user.id
-    user = await get_user(uid)
-    if not user or not user.get('premium_status'):
-        await q.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
-    else:
-        text = await _subscription_status_text(user, context.bot, uid)
-        await q.message.reply_text(bold_small_caps(text), parse_mode='HTML', reply_markup=premium_purchase_menu())
+    user = await get_user(q.from_user.id)
+    if not user:
+        return await q.message.reply_text(bold_small_caps('🔴 No active premium membership.'), parse_mode='HTML')
+    text = await _subscription_status_text(user, context.bot, q.from_user.id)
+    await q.message.reply_text(bold_small_caps(text), parse_mode='HTML', reply_markup=premium_purchase_menu())
 
 async def check(update, context):
     q = update.callback_query
     await q.answer()
-    if await is_member(context.bot, q.from_user.id):
+    user = await get_user(q.from_user.id)
+    # Legacy CHECK button is for Movie Premium.
+    if user and user.get('premium_status') and await is_member(context.bot, q.from_user.id, "movie"):
         await upsert_user(q.from_user.id, joined_group=True)
-        await safe_edit_message(q.message, '🟢 You are a member of the Premium Group.')
+        await safe_edit_message(q.message, '🟢 You are a member of the Movie Premium Group.')
     else:
-        await q.answer('🔴 You are not in the Premium Group.', show_alert=True)
+        await q.answer('🔴 You are not in the Movie Premium Group.', show_alert=True)
 
 async def home(update, context):
     q = update.callback_query
@@ -467,45 +531,38 @@ async def close_data(update, context):
         pass
 
 async def premium_group_member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Revoke a one-user premium invite immediately after it is used."""
+    """Handle joins for both independent premium groups and revoke used invites."""
     cm = update.chat_member
     if not cm:
         return
-    if cm.chat.id != PREMIUM_GROUP_ID:
+    if cm.chat.id == PREMIUM_GROUP_ID:
+        category = "movie"
+    elif cm.chat.id == ADULT_PREMIUM_GROUP_ID:
+        category = "adult"
+    else:
         return
 
     new_status = cm.new_chat_member.status
     old_status = cm.old_chat_member.status
-
-    # Only act when a user actually joins/becomes a member.
     joined = new_status in ("member", "administrator", "creator") and old_status in ("left", "kicked")
     if not joined:
         return
 
     uid = cm.from_user.id if cm.from_user else cm.new_chat_member.user.id
-
-    # Mark the user as joined in the premium bot DB.
+    field = "joined_group" if category == "movie" else "adult_joined_group"
     try:
-        await upsert_user(uid, joined_group=True)
+        await upsert_user(uid, **{field: True})
     except Exception as e:
         print(f"Joined-group DB update failed for {uid}: {e}", flush=True)
 
-    # Telegram provides the exact invite link used for this join.
     invite = getattr(cm, "invite_link", None)
     invite_url = getattr(invite, "invite_link", None) if invite else None
-
-    # Revoke the used invite so it cannot be reused.
     if invite_url:
         try:
-            await context.bot.delete_chat_invite_link(
-                chat_id=PREMIUM_GROUP_ID,
-                invite_link=invite_url,
-            )
-            print(f"Revoked used premium invite for user {uid}", flush=True)
+            await context.bot.delete_chat_invite_link(chat_id=cm.chat.id, invite_link=invite_url)
         except Exception as e:
-            print(f"Failed to revoke used premium invite for {uid}: {e}", flush=True)
+            print(f"Failed to revoke used {category} invite for {uid}: {e}", flush=True)
 
-    # Delete the complete private message that contained the invite button/link.
     try:
         invite_message = await remove_premium_invite_message(uid, invite_url)
         if invite_message:
@@ -513,6 +570,6 @@ async def premium_group_member_update(update: Update, context: ContextTypes.DEFA
                 chat_id=invite_message.get("chat_id", uid),
                 message_id=invite_message["message_id"],
             )
-            print(f"Deleted premium invite message for user {uid}", flush=True)
     except Exception as e:
-        print(f"Failed to delete premium invite message for {uid}: {e}", flush=True)
+        print(f"Failed to delete {category} invite message for {uid}: {e}", flush=True)
+
