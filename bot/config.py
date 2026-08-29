@@ -14,6 +14,7 @@ SECOND_AUTO_FILTER_MONGO_URI = os.getenv("SECOND_AUTO_FILTER_MONGO_URI", "")
 
 ADMIN_IDS = {int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()}
 PREMIUM_GROUP_ID = int(os.getenv("PREMIUM_GROUP_ID", "0"))
+ADULT_PREMIUM_GROUP_ID = int(os.getenv("ADULT_PREMIUM_GROUP_ID", "0"))
 
 UPI_ID = os.getenv("UPI_ID", "")
 UPI_NAME = os.getenv("UPI_NAME", "")
@@ -57,6 +58,15 @@ PLANS = [
     {"id":"p4","name":os.getenv("PLAN_4_NAME","DAIMOND"),"days":int(os.getenv("PLAN_4_DAYS","365")),"price":int(os.getenv("PLAN_4_PRICE","799")),"offer":_plan_offer(4)},
 ]
 PLAN_MAP = {p["id"]: p for p in PLANS}
+
+# Separate 18+ Premium plans. These memberships are completely independent
+# from Movie Premium and never sync to the Auto Filter premium collection.
+ADULT_PLANS = [
+    {"id":"a1","name":os.getenv("ADULT_PLAN_1_NAME","18+ SILVER"),"days":int(os.getenv("ADULT_PLAN_1_DAYS","30")),"price":int(os.getenv("ADULT_PLAN_1_PRICE","99"))},
+    {"id":"a2","name":os.getenv("ADULT_PLAN_2_NAME","18+ GOLD"),"days":int(os.getenv("ADULT_PLAN_2_DAYS","90")),"price":int(os.getenv("ADULT_PLAN_2_PRICE","249"))},
+]
+ADULT_PLAN_MAP = {p["id"]: p for p in ADULT_PLANS}
+
 
 # Runtime offers are managed by the admin /offer command and persisted in MongoDB.
 RUNTIME_OFFERS = {}

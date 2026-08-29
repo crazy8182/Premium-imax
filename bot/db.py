@@ -215,3 +215,16 @@ async def sync_auto_filter_premium(uid, expiry):
             {"$set": document},
             upsert=True,
         )
+
+
+def active_adult_users():
+    return users.find({
+        "adult_premium_status": True,
+        "adult_premium_expiry": {"$exists": True, "$ne": None, "$gt": datetime.now(timezone.utc)},
+    })
+
+def expired_adult_users():
+    return users.find({
+        "adult_premium_status": True,
+        "adult_premium_expiry": {"$exists": True, "$ne": None, "$lte": datetime.now(timezone.utc)},
+    })

@@ -1,5 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from bot.config import PLANS, offer_details
+from bot.config import PLANS, ADULT_PLANS, offer_details
 
 # Telegram Bot API supports 3 official button styles:
 # primary = blue, success = green, danger = red.
@@ -31,16 +31,33 @@ def main_menu():
     ])
 
 
+def premium_category_menu():
+    return InlineKeyboardMarkup([
+        [btn("🎬 MOVIE PREMIUM", callback_data="category:movie", style=SUCCESS)],
+        [btn("🔞 18+ PREMIUM", callback_data="category:adult", style=SUCCESS)],
+        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+    ])
+
+
+def adult_purchase_menu():
+    return InlineKeyboardMarkup([
+        [btn("➕ EXTEND 18+ PREMIUM", callback_data="adult_extend", style=SUCCESS)],
+        [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
+    ])
+
+
 def premium_purchase_menu():
+
+
     return InlineKeyboardMarkup([
         [btn("➕ EXTEND PREMIUM", callback_data="extend_premium", style=SUCCESS)],
         [btn("🔴 CANCEL", callback_data="home", style=DANGER)],
     ])
 
 
-def plans_menu(credits=0, expired=False, callback_prefix="plan"):
+def plans_menu(credits=0, expired=False, callback_prefix="plan", plans=None):
     rows = []
-    for p in PLANS:
+    for p in (plans if plans is not None else PLANS):
         offer = offer_details(p)
 
         if expired:
