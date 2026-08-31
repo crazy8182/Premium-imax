@@ -106,9 +106,9 @@ async def show_plan_list(message, user, extension=False, category="movie"):
     if expired:
         text = f"🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:"
     elif extension:
-        text = '➕ Extend your Movie Premium\n\n⭐ Choose the plan you want to add:'
+        text = '➕ Extend your Movie Premium\n\n🎬 PREMIUM MOVIE PLANS\n\n\n🎬 1 month\n\n🎬 3 month + 🔞 1 month Desi free\n\n🎬 6 month + 🔞 2 month desi free\n\n🎬12 month + 🔞 3 month desi porn free\n\n\n⭐ Choose your Movie Premium Plan:'
     else:
-        text = '🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:\n\n🎁 5% discount available.' if credits else '🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:'
+        text = '🎬 PREMIUM MOVIE PLANS\n\n\n🎬 1 month\n\n🎬 3 month + 🔞 1 month Desi free\n\n🎬 6 month + 🔞 2 month desi free\n\n🎬12 month + 🔞 3 month desi porn free\n\n\n⭐ Choose your Movie Premium Plan:\n\n🎁 5% discount available.' if credits else '🎬 PREMIUM MOVIE PLANS\n\n\n🎬 1 month\n\n🎬 3 month + 🔞 1 month Desi free\n\n🎬 6 month + 🔞 2 month desi free\n\n🎬12 month + 🔞 3 month desi porn free\n\n\n⭐ Choose your Movie Premium Plan:'
     prefix = 'extend_plan' if extension else 'plan'
     return await safe_edit_message(message, text, reply_markup=plans_menu(credits, expired=expired, callback_prefix=prefix, plans=PLANS))
 
