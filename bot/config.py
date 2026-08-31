@@ -59,6 +59,14 @@ PLANS = [
 ]
 PLAN_MAP = {p["id"]: p for p in PLANS}
 
+# Free 18+ Premium bundled with selected Movie Premium plans.
+# Movie 3 months -> 18+ 1 month, 6 months -> 18+ 2 months, 12 months -> 18+ 3 months.
+MOVIE_FREE_ADULT_DAYS = {
+    "p2": int(os.getenv("MOVIE_P2_FREE_ADULT_DAYS", "30")),
+    "p3": int(os.getenv("MOVIE_P3_FREE_ADULT_DAYS", "60")),
+    "p4": int(os.getenv("MOVIE_P4_FREE_ADULT_DAYS", "90")),
+}
+
 # Separate 18+ Premium plans. These memberships are completely independent
 # from Movie Premium and never sync to the Auto Filter premium collection.
 ADULT_PLANS = [
