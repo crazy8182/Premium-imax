@@ -49,10 +49,10 @@ async def process(bot):
         if last and now - last < timedelta(hours=REMINDER_HOURS):
             continue
         try:
-            link = await make_invite(bot, uid)
+            
             from bot.keyboards import join_menue
             sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your premium is active, but you have not joined the Premium Group yet.\n\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
-            await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+            await save_premium_invite_message(uid, sent.message_id, sent.chat_id)
             await upsert_user(uid, last_reminder=now)
         except Exception as e:
             print(f'Reminder error for {uid}: {e}', flush=True)
@@ -83,10 +83,10 @@ async def process(bot):
         if last and now - last < timedelta(hours=REMINDER_HOURS):
             continue
         try:
-            link = await make_invite(bot, uid, "adult")
+            
             from bot.keyboards import join_menue
             sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your 18+ Premium is active, but you have not joined the 18+ Premium Group yet.\n\nContact SUPPORT TEAM Using Below Button.'), reply_markup=join_menue(link), parse_mode='HTML')
-            await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+            await save_premium_invite_message(uid, sent.message_id, sent.chat_id)
             await upsert_user(uid, adult_last_reminder=now)
         except Exception as e:
             print(f'18+ reminder error for {uid}: {e}', flush=True)
