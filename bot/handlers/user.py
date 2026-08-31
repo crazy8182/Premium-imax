@@ -104,11 +104,11 @@ async def show_plan_list(message, user, extension=False, category="movie"):
     credits = int(user.get("discount_credits", 0)) if user else 0
     expired = expired_offer_active(user) and not extension
     if expired:
-        text = f"🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n⭐ Choose your Premium Plan:"
+        text = f"🔥 Your premium recently expired!\n\n🎁 Special offer: {EXPIRED_DISCOUNT_PERCENT}% OFF\n⏳ Offer valid for only 3 days after expiry.\n\n🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:"
     elif extension:
         text = '➕ Extend your Movie Premium\n\n⭐ Choose the plan you want to add:'
     else:
-        text = '⭐ Choose your Movie Premium Plan:\n\n🎁 5% discount available.' if credits else '⭐ Choose your Movie Premium Plan:'
+        text = '🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:\n\n🎁 5% discount available.' if credits else '🎬 PREMIUM MOVIE PLANS\n\n1 month\n3 month + 1 month desi porn free\n6 month + 2 month desi porn free\n12 month+ 3 month desi porn free⭐ Choose your Movie Premium Plan:'
     prefix = 'extend_plan' if extension else 'plan'
     return await safe_edit_message(message, text, reply_markup=plans_menu(credits, expired=expired, callback_prefix=prefix, plans=PLANS))
 
