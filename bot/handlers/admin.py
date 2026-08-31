@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.config import ADMIN_IDS, PLAN_MAP, ADULT_PLAN_MAP, offer_details
+from bot.config import ADMIN_IDS, PLAN_MAP, ADULT_PLAN_MAP, MOVIE_FREE_ADULT_DAYS, offer_details
 from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium, save_premium_invite_message
 from bot.services.premium import make_invite, remove_member
 from bot.services.formatting import bold_small_caps
@@ -54,6 +54,28 @@ async def approve(update, context):
         common[prefix + 'joined_group'] = False
     expiry = common[prefix + 'premium_expiry']
     await upsert_user(pmt['user_id'], **common)
+
+    # Free 18+ Premium bundle with Movie Premium plans:
+    # 3 months Movie -> 1 month 18+, 6 months -> 2 months, 12 months -> 3 months.
+    free_adult_days = 0
+    free_adult_expiry = None
+    if not is_adult:
+        free_adult_days = int(MOVIE_FREE_ADULT_DAYS.get(pmt['plan_id'], 0) or 0)
+        if free_adult_days > 0:
+            current_adult_expiry = utc_aware(user.get('adult_premium_expiry')) if user else None
+            adult_active = bool(user and user.get('adult_premium_status') and current_adult_expiry and current_adult_expiry > now)
+            free_adult_expiry = (current_adult_expiry + timedelta(days=free_adult_days)) if adult_active else (now + timedelta(days=free_adult_days))
+            await upsert_user(
+                pmt['user_id'],
+                adult_premium_status=True,
+                adult_premium_plan='movie_bundle',
+                adult_premium_plan_name=f'FREE 18+ with {plan["name"]}',
+                adult_premium_start=now if not adult_active else user.get('adult_premium_start', now),
+                adult_premium_expiry=free_adult_expiry,
+                adult_joined_group=False if not adult_active else user.get('adult_joined_group', False),
+                adult_last_reminder=None,
+            )
+
     # ONLY Movie Premium is synchronized to Auto Filter. 18+ is fully independent.
     if not is_adult:
         await sync_auto_filter_premium(pmt['user_id'], expiry)
@@ -68,6 +90,22 @@ async def approve(update, context):
             link = await make_invite(context.bot, pmt['user_id'], category)
             sent = await context.bot.send_message(pmt['user_id'], bold_small_caps(f"🟢 {'18+ Premium' if is_adult else 'Movie Premium'} {'Extended' if is_extension else 'Activated'}!\n\n📦 {plan['name']}\n⏳ Added validity: {offer_days} days\n⏰ Expiry: {expiry}\n\nYour personal group link is valid for 24 hours and limited to one member."), reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(link), parse_mode='HTML')
             await save_premium_invite_message(pmt['user_id'], link, sent.message_id, sent.chat_id)
+
+        # Send the separate 18+ group invite for the free Movie bundle.
+        if not is_adult and free_adult_days > 0:
+            adult_link = await make_invite(context.bot, pmt['user_id'], 'adult')
+            adult_sent = await context.bot.send_message(
+                pmt['user_id'],
+                bold_small_caps(
+                    f"🎁 FREE 18+ PREMIUM ACTIVATED!\n\n"
+                    f"📦 Free validity: {free_adult_days} days\n"
+                    f"⏰ Expiry: {free_adult_expiry}\n\n"
+                    f"Your personal 18+ group link is valid for 24 hours and limited to one member."
+                ),
+                reply_markup=__import__('bot.keyboards', fromlist=['join_menu']).join_menu(adult_link),
+                parse_mode='HTML'
+            )
+            await save_premium_invite_message(pmt['user_id'], adult_link, adult_sent.message_id, adult_sent.chat_id)
     except Exception as e:
         print(f'Activation message error: {e}', flush=True)
     if referrer:
