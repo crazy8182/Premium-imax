@@ -23,7 +23,8 @@ def btn(text, callback_data=None, url=None, style=None):
 
 def main_menu():
     return InlineKeyboardMarkup([
-        [btn("🎫 BUY PREMIUM", callback_data="plans", style=SUCCESS)],
+        [btn("🎬 MOVIE PREMIUM", callback_data="category:movie", style=SUCCESS)],
+        [btn("🔞 18+ PREMIUM", callback_data="category:adult", style=SUCCESS)],
         [btn("🎁 OFFERS", callback_data="offers", style=SUCCESS)],
         [btn("📊 MY PREMIUM", callback_data="status", style=PRIMARY)],
         [btn("🔗 REFERRAL", callback_data="referral", style=PRIMARY)],
