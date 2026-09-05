@@ -2,7 +2,7 @@ from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, C
 from bot.handlers.start import start, help_cmd, referral, offers
 from bot.handlers.user import plans, movie_category, adult_category, adult_extend, extend_premium, close_data, plans_cmd, plan, adult_plan, paid, paid_adult, cancel_upload, screenshot, status, status_cb, check, home, help_cb, referral_cb, offers_cb, premium_group_member_update
 from bot.handlers.broadcast import broadcast
-from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, manual_adult_premium, remove_cmd, remove_adult_cmd, offer_cmd, offer_manager_cb, offer_all_cb, offer_all_type_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium
+from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, manual_adult_premium, remove_cmd, remove_adult_cmd, offer_cmd, offer_manager_cb, offer_all_cb, offer_all_type_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium, extend_premium_cmd, extend_all_premium_cmd, extend_days_cmd, extend_months_cmd, extend_all_days_cmd, extend_all_months_cmd
 
 def register_handlers(app):
     app.add_handler(CommandHandler("start", start))
@@ -15,6 +15,12 @@ def register_handlers(app):
     app.add_handler(CommandHandler("pending", pending))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("premium", manual_premium))
+    app.add_handler(CommandHandler("extend", extend_premium_cmd))
+    app.add_handler(CommandHandler("extendall", extend_all_premium_cmd))
+    app.add_handler(CommandHandler("extenddays", extend_days_cmd))
+    app.add_handler(CommandHandler("extendmonths", extend_months_cmd))
+    app.add_handler(CommandHandler("extendalldays", extend_all_days_cmd))
+    app.add_handler(CommandHandler("extendallmonths", extend_all_months_cmd))
     app.add_handler(CommandHandler("premium18", manual_adult_premium))
     app.add_handler(CommandHandler("check_premium", check_premium))
     app.add_handler(CommandHandler("broadcast", broadcast))
