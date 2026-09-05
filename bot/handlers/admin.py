@@ -140,7 +140,7 @@ async def reject(update, context):
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
-    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium — All active premium users\n/checkpremium USER_ID — Specific user premium check\n/checkuserpremium USER_ID — Specific user premium check\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id):
@@ -235,8 +235,8 @@ async def extend_premium_cmd(update, context):
     except Exception:
         return await update.message.reply_text(
             bold_small_caps(
-                "Usage:\\n"
-                "/extend USER_ID days 10\\n"
+                "Usage:\n"
+                "/extend USER_ID days 10\n"
                 "/extend USER_ID months 2"
             ),
             parse_mode="HTML",
@@ -263,9 +263,9 @@ async def extend_premium_cmd(update, context):
 
     await update.message.reply_text(
         bold_small_caps(
-            f"✅ Premium extended successfully.\\n\\n"
-            f"🆔 User: <code>{uid}</code>\\n"
-            f"➕ Added: {amount} {unit}\\n"
+            f"✅ Premium extended successfully.\n\n"
+            f"🆔 User: <code>{uid}</code>\n"
+            f"➕ Added: {amount} {unit}\n"
             f"📅 New expiry: {new_expiry.strftime('%d-%m-%Y %H:%M UTC')}"
         ),
         parse_mode="HTML",
@@ -279,8 +279,8 @@ async def extend_all_premium_cmd(update, context):
     if len(context.args) != 2:
         return await update.message.reply_text(
             bold_small_caps(
-                "Usage:\\n"
-                "/extendall days 10\\n"
+                "Usage:\n"
+                "/extendall days 10\n"
                 "/extendall months 2"
             ),
             parse_mode="HTML",
@@ -328,9 +328,9 @@ async def extend_all_premium_cmd(update, context):
 
     await update.message.reply_text(
         bold_small_caps(
-            f"✅ All active Movie Premium members extended.\\n\\n"
-            f"➕ Added: {amount} {unit}\\n"
-            f"👥 Updated: {count}\\n"
+            f"✅ All active Movie Premium members extended.\n\n"
+            f"➕ Added: {amount} {unit}\n"
+            f"👥 Updated: {count}\n"
             f"❌ Failed: {failed}"
         ),
         parse_mode="HTML",
@@ -757,3 +757,72 @@ async def check_premium(update, context):
     path.write_text(text, encoding='utf-8')
     with path.open('rb') as f:
         await update.message.reply_document(document=f, filename='premium.txt', caption=bold_small_caps(f'💎 Active premium records: {len(rows)}'), parse_mode='HTML')
+
+
+async def check_specific_premium(update, context):
+    """Check Movie and 18+ premium details for one specific user."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 1:
+        return await update.message.reply_text(
+            bold_small_caps("Usage:\n/checkpremium USER_ID\n\nExample:\n/checkpremium 7399162359"),
+            parse_mode="HTML",
+        )
+    try:
+        uid = int(context.args[0])
+    except ValueError:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Please enter a valid numeric User ID."), parse_mode="HTML"
+        )
+
+    user = await get_user(uid)
+    if not user:
+        return await update.message.reply_text(
+            bold_small_caps("❌ User not found in database. User must start the bot first."),
+            parse_mode="HTML",
+        )
+
+    now = datetime.now(timezone.utc)
+    first = (user.get("first_name") or "").strip()
+    last = (user.get("last_name") or "").strip()
+    name = " ".join(x for x in [first, last] if x).strip() or "Unknown"
+    username = user.get("username")
+    display = f"{name} (@{username})" if username else name
+
+    movie_expiry = utc_aware(user.get("premium_expiry"))
+    adult_expiry = utc_aware(user.get("adult_premium_expiry"))
+    movie_active = bool(user.get("premium_status") and movie_expiry and movie_expiry > now)
+    adult_active = bool(user.get("adult_premium_status") and adult_expiry and adult_expiry > now)
+
+    lines = [
+        "🔍 PREMIUM USER CHECK",
+        "",
+        f"👤 Name: {display}",
+        f"🆔 User ID: <code>{uid}</code>",
+        "",
+    ]
+
+    if movie_active:
+        lines += [
+            "🎬 MOVIE PREMIUM: ✅ ACTIVE",
+            f"🏷️ Plan: {user.get('premium_plan_name') or user.get('premium_plan') or 'Premium'}",
+            f"📅 Expiry: {movie_expiry.strftime('%d-%m-%Y %H:%M UTC')}",
+        ]
+    else:
+        lines.append("🎬 MOVIE PREMIUM: ❌ NOT ACTIVE")
+        if movie_expiry:
+            lines.append(f"📅 Last expiry: {movie_expiry.strftime('%d-%m-%Y %H:%M UTC')}")
+
+    lines.append("")
+    if adult_active:
+        lines += [
+            "🔞 18+ PREMIUM: ✅ ACTIVE",
+            f"🏷️ Plan: {user.get('adult_premium_plan_name') or user.get('adult_premium_plan') or 'Premium'}",
+            f"📅 Expiry: {adult_expiry.strftime('%d-%m-%Y %H:%M UTC')}",
+        ]
+    else:
+        lines.append("🔞 18+ PREMIUM: ❌ NOT ACTIVE")
+        if adult_expiry:
+            lines.append(f"📅 Last expiry: {adult_expiry.strftime('%d-%m-%Y %H:%M UTC')}")
+
+    await update.message.reply_text(bold_small_caps("\n".join(lines)), parse_mode="HTML")
