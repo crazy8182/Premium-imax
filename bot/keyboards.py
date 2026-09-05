@@ -130,7 +130,7 @@ def join_menu(link):
     ])
 
 
-def join_menue(link):
+def join_menue():
     return InlineKeyboardMarkup([
         [btn("🤖 SUPPORT", callback_data="help", style=SUCCESS)],
         [btn("🏠 MAIN MENU", callback_data="home", style=PRIMARY)]
