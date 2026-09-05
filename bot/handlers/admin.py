@@ -140,7 +140,7 @@ async def reject(update, context):
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
-    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n/check_premium\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id):
@@ -188,6 +188,174 @@ async def stats(update, context):
     pending_n = await payments.count_documents({'status': 'pending'})
     approved = await payments.count_documents({'status': 'approved'})
     await update.message.reply_text(bold_small_caps(f'📊 Statistics\n\n🟢 Active: {active}\n🟡 Pending: {pending_n}\n💳 Approved: {approved}'), parse_mode='HTML')
+
+
+def _add_months(dt, months):
+    """Add calendar months while keeping a valid day (e.g. Jan 31 -> Feb 28/29)."""
+    from calendar import monthrange
+    month_index = dt.month - 1 + months
+    year = dt.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(dt.day, monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
+
+
+def _parse_extend_args(args):
+    """Accept: USER_ID DAYS 10 / USER_ID MONTHS 2."""
+    if len(args) != 3:
+        raise ValueError("format")
+    uid = int(args[0])
+    unit = args[1].lower()
+    amount = int(args[2])
+    if unit in ("day", "days", "d"):
+        unit = "days"
+    elif unit in ("month", "months", "m"):
+        unit = "months"
+    else:
+        raise ValueError("unit")
+    if amount <= 0:
+        raise ValueError("amount")
+    return uid, unit, amount
+
+
+def _extend_expiry(current_expiry, unit, amount):
+    now = datetime.now(timezone.utc)
+    base = utc_aware(current_expiry) if current_expiry else None
+    if base is None or base < now:
+        base = now
+    return base + timedelta(days=amount) if unit == "days" else _add_months(base, amount)
+
+
+async def extend_premium_cmd(update, context):
+    """Extend one user's Movie Premium without resetting existing time."""
+    if not admin_only(update.effective_user.id):
+        return
+    try:
+        uid, unit, amount = _parse_extend_args(context.args)
+    except Exception:
+        return await update.message.reply_text(
+            bold_small_caps(
+                "Usage:\\n"
+                "/extend USER_ID days 10\\n"
+                "/extend USER_ID months 2"
+            ),
+            parse_mode="HTML",
+        )
+
+    user = await get_user(uid)
+    if not user:
+        return await update.message.reply_text(
+            bold_small_caps("❌ User not found in database. User must start the bot first."),
+            parse_mode="HTML",
+        )
+
+    old_expiry = utc_aware(user.get("premium_expiry"))
+    new_expiry = _extend_expiry(old_expiry, unit, amount)
+
+    await upsert_user(
+        uid,
+        premium_status=True,
+        premium_expiry=new_expiry,
+        premium_plan="extended",
+        premium_plan_name=f"Extended +{amount} {unit.title()}",
+    )
+    await sync_auto_filter_premium(uid, new_expiry)
+
+    await update.message.reply_text(
+        bold_small_caps(
+            f"✅ Premium extended successfully.\\n\\n"
+            f"🆔 User: <code>{uid}</code>\\n"
+            f"➕ Added: {amount} {unit}\\n"
+            f"📅 New expiry: {new_expiry.strftime('%d-%m-%Y %H:%M UTC')}"
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def extend_all_premium_cmd(update, context):
+    """Extend all currently active Movie Premium members."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 2:
+        return await update.message.reply_text(
+            bold_small_caps(
+                "Usage:\\n"
+                "/extendall days 10\\n"
+                "/extendall months 2"
+            ),
+            parse_mode="HTML",
+        )
+    try:
+        unit = context.args[0].lower()
+        amount = int(context.args[1])
+        if unit in ("day", "days", "d"):
+            unit = "days"
+        elif unit in ("month", "months", "m"):
+            unit = "months"
+        else:
+            raise ValueError
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Use only positive days or months."),
+            parse_mode="HTML",
+        )
+
+    now = datetime.now(timezone.utc)
+    cursor = users.find({
+        "premium_status": True,
+        "premium_expiry": {"$exists": True, "$ne": None, "$gt": now},
+    })
+
+    count = 0
+    failed = 0
+    async for user in cursor:
+        uid = int(user["user_id"])
+        try:
+            new_expiry = _extend_expiry(user.get("premium_expiry"), unit, amount)
+            await upsert_user(
+                uid,
+                premium_status=True,
+                premium_expiry=new_expiry,
+                premium_plan_name=f"Extended +{amount} {unit.title()}",
+            )
+            await sync_auto_filter_premium(uid, new_expiry)
+            count += 1
+        except Exception as e:
+            print(f"Bulk premium extend failed for {uid}: {e}", flush=True)
+            failed += 1
+
+    await update.message.reply_text(
+        bold_small_caps(
+            f"✅ All active Movie Premium members extended.\\n\\n"
+            f"➕ Added: {amount} {unit}\\n"
+            f"👥 Updated: {count}\\n"
+            f"❌ Failed: {failed}"
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def extend_days_cmd(update, context):
+    context.args = [*context.args[:1], "days", *context.args[1:]]
+    await extend_premium_cmd(update, context)
+
+
+async def extend_months_cmd(update, context):
+    context.args = [*context.args[:1], "months", *context.args[1:]]
+    await extend_premium_cmd(update, context)
+
+
+async def extend_all_days_cmd(update, context):
+    context.args = ["days", *context.args]
+    await extend_all_premium_cmd(update, context)
+
+
+async def extend_all_months_cmd(update, context):
+    context.args = ["months", *context.args]
+    await extend_all_premium_cmd(update, context)
+
 
 async def manual_premium(update, context):
     if not admin_only(update.effective_user.id):
