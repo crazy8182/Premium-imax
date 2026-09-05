@@ -51,7 +51,7 @@ async def process(bot):
         try:
             from bot.keyboards import join_menue
             sent = await bot.send_message(uid, bold_small_caps('⏰ Reminder: your premium is active, but you have not joined the Premium Group yet.\n\nUse the button below to join the Premium Group.'), reply_markup=join_menue(), parse_mode='HTML')
-            await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+            await save_premium_invite_message(uid, sent.message_id, sent.chat_id)
             await upsert_user(uid, last_reminder=now)
         except Exception as e:
             print(f'Reminder error for {uid}: {e}', flush=True)
