@@ -140,7 +140,7 @@ async def reject(update, context):
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
-    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium — All active premium users\n/checkpremium USER_ID — Specific user premium check\n/checkuserpremium USER_ID — Specific user premium check\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium — All active premium users\n/checkpremium USER_ID — Specific user premium check\n/checkuserpremium USER_ID — Specific user premium check\n\n💬 MESSAGE SPECIFIC USER\n/msg USER_ID Your message\nReply to any message + /msg USER_ID to send the same message\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id):
@@ -826,3 +826,46 @@ async def check_specific_premium(update, context):
             lines.append(f"📅 Last expiry: {adult_expiry.strftime('%d-%m-%Y %H:%M UTC')}")
 
     await update.message.reply_text(bold_small_caps("\n".join(lines)), parse_mode="HTML")
+
+async def message_specific_user(update, context):
+    """Admin command: /msg USER_ID MESSAGE, or reply to a message with /msg USER_ID."""
+    if not update.effective_user or not admin_only(update.effective_user.id):
+        return
+    if not context.args:
+        return await update.message.reply_text(
+            bold_small_caps(
+                "Usage:\n"
+                "/msg USER_ID Your message here\n\n"
+                "Or reply to any message with:\n/msg USER_ID"
+            ), parse_mode="HTML"
+        )
+    try:
+        uid = int(context.args[0])
+    except (ValueError, TypeError):
+        return await update.message.reply_text(
+            bold_small_caps("❌ Invalid User ID. Please enter a valid numeric User ID."),
+            parse_mode="HTML"
+        )
+
+    try:
+        if update.message.reply_to_message:
+            await update.message.reply_to_message.copy(chat_id=uid)
+        else:
+            text = " ".join(context.args[1:]).strip()
+            if not text:
+                return await update.message.reply_text(
+                    bold_small_caps("❌ Message missing.\n\nExample:\n/msg USER_ID Hello!"),
+                    parse_mode="HTML"
+                )
+            await context.bot.send_message(chat_id=uid, text=text)
+
+        await update.message.reply_text(
+            bold_small_caps(f"✅ Message sent successfully.\n\n🆔 User: {uid}"),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Specific user message error for {uid}: {e}", flush=True)
+        await update.message.reply_text(
+            bold_small_caps(f"❌ Message could not be sent.\n\n🆔 User: {uid}\n⚠️ Error: {e}"),
+            parse_mode="HTML"
+        )
