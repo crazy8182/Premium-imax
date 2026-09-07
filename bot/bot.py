@@ -63,5 +63,5 @@ def register_handlers(app):
 
     app.add_handler(ChatMemberHandler(premium_group_member_update, ChatMemberHandler.CHAT_MEMBER))
 
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, screenshot))
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & (filters.PHOTO | filters.Document.ALL), screenshot))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, offer_input), group=0)
