@@ -331,7 +331,11 @@ async def store_and_delete_proof(message, context, uid, payment_id=None):
 
 async def screenshot(update, context):
     message = update.message
-    if not message or (not message.photo and (not message.document)):
+    # Payment proofs are accepted and backed up ONLY from a user's private chat (bot PM).
+    # Ignore photos/documents sent in groups, supergroups and channels.
+    if not message or message.chat.type != "private":
+        return
+    if not message.photo and not message.document:
         return
     uid = update.effective_user.id
     backup_ok = await store_and_delete_proof(message, context, uid)
