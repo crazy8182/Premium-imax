@@ -36,7 +36,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_menu()
     )
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton('💼 Contact Support', url=f'https://t.me/imaxsubsciptionbot', style='primary')]]
+    keyboard = [[InlineKeyboardButton('💼 Contact Support', url=f'https://t.me/akImaxSupport_Bot', style='primary')]]
     await update.message.reply_text(bold_small_caps('🆘 <b>Support</b>\n\nContact our team using the button below.'), reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
 async def referral(update, context):
