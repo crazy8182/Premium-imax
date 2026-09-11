@@ -871,38 +871,6 @@ async def message_specific_user(update, context):
         )
 
 
-async def send_premium_group_invite(context, uid, link, category):
-    """Send the generated premium invite to the user's PM, like payment approval."""
-    from bot.config import INVITE_VALID_HOURS
-    from bot.keyboards import join_menu
-
-    if category == "adult":
-        caption = (
-            "🔞 <b>18+ Premium Group Link</b>\n\n"
-            "लगता है हमारे 18+ ग्रुप पर copyright आ गया है। "
-            "या तो आप ग्रुप से left हो गए हो। "
-            "इस लिए owner ने नया link भेजा है।\n\n"
-            "Join हो जाओ। Link 12 hours के लिए valid रहेगा।"
-        )
-    else:
-        caption = (
-            "🎬 <b>Movie Premium Group Link</b>\n\n"
-            "लगता है हमारे movie ग्रुप पे copyright आ गया है। "
-            "या तो आप ग्रुप से left हो गए हो। "
-            "इस लिए owner ने नया link भेजा है।\n\n"
-            "Join हो जाओ। Link 12 hours के लिए valid रहेगा।"
-        )
-
-    sent = await context.bot.send_message(
-        chat_id=uid,
-        text=bold_small_caps(caption),
-        reply_markup=join_menu(link),
-        parse_mode="HTML",
-    )
-    await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
-    return sent
-
-
 async def generate_premium_link(update, context):
     """Admin: generate a fresh one-user invite for a specific active premium user."""
     if not admin_only(update.effective_user.id):
@@ -949,21 +917,16 @@ async def generate_premium_link(update, context):
     await revoke_user_invites(context.bot, uid, category)
     link = await make_invite(context.bot, uid, category)
 
-    try:
-        await send_premium_group_invite(context, uid, link, category)
-        status = "✅ Link user ke PM me send kar diya gaya."
-    except Exception as e:
-        status = f"❌ Link generate hua, lekin user ke PM me send nahi ho saka.\n⚠️ {e}"
-
     await update.message.reply_text(
         bold_small_caps(
             f"🔗 <b>{category_label(category)} LINK GENERATED</b>\n\n"
             f"👤 User ID: <code>{uid}</code>\n"
             f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
-            f"⌛ Link validity: 12 hours\n\n"
-            f"{status}"
+            f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
+            f"🔗 {link}"
         ),
         parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
 
@@ -1001,11 +964,6 @@ async def generate_all_premium_links(update, context):
             try:
                 await revoke_user_invites(context.bot, uid, cat)
                 link = await make_invite(context.bot, uid, cat)
-                try:
-                    await send_premium_group_invite(context, uid, link, cat)
-                except Exception as pm_error:
-                    # Keep the invite tracked even if the user's PM is unavailable.
-                    print(f"Premium invite PM send failed for {uid}: {pm_error}", flush=True)
                 expiry = utc_aware(user.get(prefix + "premium_expiry"))
                 name = " ".join(
                     x for x in [user.get("first_name"), user.get("last_name")] if x
@@ -1040,7 +998,7 @@ async def generate_all_premium_links(update, context):
                 f"🎬/🔞 Groups selected: {category}\n"
                 f"✅ Generated: {total_count}\n"
                 f"❌ Failed: {total_failed}\n\n"
-                "Every link is limited to 1 member and valid for 12 hours."
+                "Every link is limited to 1 member."
             ),
             parse_mode="HTML",
         )
