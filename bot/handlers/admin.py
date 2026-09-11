@@ -923,12 +923,12 @@ async def generate_premium_link(update, context):
     try:
         await context.bot.send_message(
             chat_id=uid,
-            text=bold_small_caps(
+            text=(
                 f"🔗 <b>{category_label(category)} LINK</b>\n\n"
                 "Your premium group invite link has been generated.\n\n"
                 f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
                 f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
-                f"🔗 {link}"
+                f"🔗 <a href=\"{link}\">{link}</a>"
             ),
             parse_mode="HTML",
             disable_web_page_preview=True,
@@ -991,12 +991,12 @@ async def generate_all_premium_links(update, context):
                 # Send each user's own invite only to that user.
                 await context.bot.send_message(
                     chat_id=uid,
-                    text=bold_small_caps(
+                    text=(
                         f"🔗 <b>{category_label(cat)} LINK</b>\n\n"
                         "Your premium group invite link has been generated.\n\n"
                         f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
                         f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
-                        f"🔗 {link}"
+                        f"🔗 <a href=\"{link}\">{link}</a>"
                     ),
                     parse_mode="HTML",
                     disable_web_page_preview=True,

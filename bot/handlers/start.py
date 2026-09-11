@@ -48,7 +48,14 @@ async def referral(update, context):
     me = await context.bot.get_me()
     code = user.get('referral_code', str(u.id))
     link = f'https://t.me/{me.username}?start=ref_{code}'
-    await update.message.reply_text(bold_small_caps(f"🎁 Referral Program\n\n🔗 {link}\n\n👥 Successful referrals: {user.get('successful_referrals', 0)}\n🎟️ 5% discount credits: {user.get('discount_credits', 0)}\n\nEach successful referred premium purchase gives you one 5% discount on your next purchase."), parse_mode='HTML')
+    await update.message.reply_text(
+        f"🎁 <b>Referral Program</b>\n\n"
+        f"🔗 <a href=\"{link}\">{link}</a>\n\n"
+        f"👥 Successful referrals: {user.get('successful_referrals', 0)}\n"
+        f"🎟️ 5% discount credits: {user.get('discount_credits', 0)}\n\n"
+        "Each successful referred premium purchase gives you one 5% discount on your next purchase.",
+        parse_mode='HTML'
+    )
 
 async def offers(update, context):
     active = []
