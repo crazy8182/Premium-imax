@@ -917,25 +917,52 @@ async def generate_premium_link(update, context):
     await revoke_user_invites(context.bot, uid, category)
     link = await make_invite(context.bot, uid, category)
 
+    # Send the generated invite directly to the premium user's private chat.
+    user_message_sent = False
+    user_message_error = None
+    try:
+        await context.bot.send_message(
+            chat_id=uid,
+            text=bold_small_caps(
+                f"🔗 <b>{category_label(category)} LINK</b>\n\n"
+                "Your premium group invite link has been generated.\n\n"
+                f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
+                f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
+                f"🔗 {link}"
+            ),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+        user_message_sent = True
+    except Exception as e:
+        user_message_error = str(e)
+
+    # Keep the admin informed about the result; the link is no longer delivered
+    # only to the admin.
+    admin_status = "✅ Sent to user's PM" if user_message_sent else f"❌ PM send failed: {user_message_error}"
     await update.message.reply_text(
         bold_small_caps(
             f"🔗 <b>{category_label(category)} LINK GENERATED</b>\n\n"
             f"👤 User ID: <code>{uid}</code>\n"
             f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
             f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
-            f"🔗 {link}"
+            f"{admin_status}"
         ),
         parse_mode="HTML",
-        disable_web_page_preview=True,
     )
 
 
 async def generate_all_premium_links(update, context):
-    """Admin: generate one fresh invite for every active premium user."""
+    """Admin: generate one fresh invite for every active premium user and DM it."""
     if not admin_only(update.effective_user.id):
         return
 
-    category = (context.args[0].lower() if context.args else "movie")
+    # The Unicode small-caps alias means "all active premium users".
+    message_text = (update.message.text or "").strip() if update.message else ""
+    if message_text.startswith("/ɢᴇɴᴇʀᴀᴛᴇʟɪɴᴋꜱ"):
+        category = "all"
+    else:
+        category = (context.args[0].lower() if context.args else "movie")
     if category not in {"movie", "adult", "all"}:
         return await update.message.reply_text(
             bold_small_caps("Usage: /generatelinks movie | adult | all"),
@@ -944,7 +971,6 @@ async def generate_all_premium_links(update, context):
 
     categories = ["movie", "adult"] if category == "all" else [category]
     now = datetime.now(timezone.utc)
-    all_lines = []
     total_count = 0
     total_failed = 0
 
@@ -955,53 +981,42 @@ async def generate_all_premium_links(update, context):
             prefix + "premium_expiry": {"$exists": True, "$ne": None, "$gt": now},
         }
 
-        all_lines.append(f"===== {category_label(cat).upper()} =====")
-        count = 0
-        failed = 0
-
         async for user in users.find(query).sort("user_id", 1):
             uid = int(user["user_id"])
             try:
                 await revoke_user_invites(context.bot, uid, cat)
                 link = await make_invite(context.bot, uid, cat)
                 expiry = utc_aware(user.get(prefix + "premium_expiry"))
-                name = " ".join(
-                    x for x in [user.get("first_name"), user.get("last_name")] if x
-                ).strip() or "Unknown"
-                count += 1
-                all_lines.append(
-                    f"{count}. {name} | {uid} | "
-                    f"expires {expiry.strftime('%d-%m-%Y %H:%M UTC')} | {link}"
+
+                # Send each user's own invite only to that user.
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=bold_small_caps(
+                        f"🔗 <b>{category_label(cat)} LINK</b>\n\n"
+                        "Your premium group invite link has been generated.\n\n"
+                        f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
+                        f"⌛ Link validity: {__import__('bot.config', fromlist=['INVITE_VALID_HOURS']).INVITE_VALID_HOURS} hours\n\n"
+                        f"🔗 {link}"
+                    ),
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
                 )
+                total_count += 1
             except Exception as e:
-                failed += 1
-                all_lines.append(f"FAILED | {uid} | {e}")
+                total_failed += 1
+                print(f"Premium link PM send/generation failed for {uid} ({cat}): {e}", flush=True)
 
-        total_count += count
-        total_failed += failed
-        all_lines.append(f"Generated: {count} | Failed: {failed}\n")
-
-    path = Path("/tmp/premium_links.txt")
-    path.write_text(
-        "Premium invite links generated by admin bot\n"
-        f"Generated at: {now.strftime('%d-%m-%Y %H:%M UTC')}\n\n"
-        + "\n".join(all_lines),
-        encoding="utf-8",
+    await update.message.reply_text(
+        bold_small_caps(
+            f"🔗 <b>PREMIUM LINKS SENT</b>\n\n"
+            f"🎬/🔞 Groups selected: {category}\n"
+            f"✅ Sent: {total_count}\n"
+            f"❌ Failed: {total_failed}\n\n"
+            "Each user received only their own invite link in bot PM.\n"
+            "Every link is limited to 1 member."
+        ),
+        parse_mode="HTML",
     )
-
-    with path.open("rb") as f:
-        await update.message.reply_document(
-            document=f,
-            filename="premium_links.txt",
-            caption=bold_small_caps(
-                f"🔗 <b>PREMIUM LINKS GENERATED</b>\n\n"
-                f"🎬/🔞 Groups selected: {category}\n"
-                f"✅ Generated: {total_count}\n"
-                f"❌ Failed: {total_failed}\n\n"
-                "Every link is limited to 1 member."
-            ),
-            parse_mode="HTML",
-        )
 
 
 async def revoke_premium_link_cmd(update, context):
