@@ -7,6 +7,7 @@ db = client[DB_NAME]
 users = db.users
 payments = db.payments
 offer_settings = db.offer_settings
+premium_invites = db.premium_invites
 
 # Same premium collection used by the Auto Filter Bot.
 # IMPORTANT: This bot only writes to it; the Auto Filter Bot code is unchanged.
@@ -49,6 +50,9 @@ async def init_db():
     await payments.create_index("status")
     await payments.create_index([("user_id", 1), ("status", 1)])
     await offer_settings.create_index("plan_id", unique=True)
+    await premium_invites.create_index("invite_link", unique=True)
+    await premium_invites.create_index([("user_id", 1), ("category", 1)])
+    await premium_invites.create_index("created_at")
 
     # Import existing Premium users from the Auto Filter Bot.
     # The Auto Filter Bot already stores premium users in the shared `uersz`

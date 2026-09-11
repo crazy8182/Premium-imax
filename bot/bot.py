@@ -2,7 +2,7 @@ from telegram.ext import CommandHandler, MessageHandler, CallbackQueryHandler, C
 from bot.handlers.start import start, help_cmd, referral, offers
 from bot.handlers.user import plans, movie_category, adult_category, adult_extend, extend_premium, close_data, plans_cmd, plan, adult_plan, paid, paid_adult, cancel_upload, screenshot, status, status_cb, check, home, help_cb, referral_cb, offers_cb, premium_group_member_update
 from bot.handlers.broadcast import broadcast
-from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, manual_adult_premium, remove_cmd, remove_adult_cmd, offer_cmd, offer_manager_cb, offer_all_cb, offer_all_type_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium, check_specific_premium, extend_premium_cmd, extend_all_premium_cmd, extend_days_cmd, extend_months_cmd, extend_all_days_cmd, extend_all_months_cmd, message_specific_user
+from bot.handlers.admin import approve, reject, admin_cmd, pending, stats, manual_premium, manual_adult_premium, remove_cmd, remove_adult_cmd, offer_cmd, offer_manager_cb, offer_all_cb, offer_all_type_cb, offer_plan_cb, offer_type_cb, offer_disable_cb, offer_list_cb, offer_input, check_premium, check_specific_premium, extend_premium_cmd, extend_all_premium_cmd, extend_days_cmd, extend_months_cmd, extend_all_days_cmd, extend_all_months_cmd, message_specific_user, generate_premium_link, generate_all_premium_links, revoke_premium_link_cmd, revoke_user_premium_links_cmd, revoke_all_premium_links_cmd
 
 def register_handlers(app):
     app.add_handler(CommandHandler("start", start))
@@ -29,6 +29,13 @@ def register_handlers(app):
     app.add_handler(CommandHandler("msg", message_specific_user))
     app.add_handler(CommandHandler("message", message_specific_user))
     app.add_handler(CommandHandler("send", message_specific_user))
+    app.add_handler(CommandHandler("generatelink", generate_premium_link))
+    app.add_handler(CommandHandler("link", generate_premium_link))
+    app.add_handler(CommandHandler("generatelinks", generate_all_premium_links))
+    app.add_handler(CommandHandler("links", generate_all_premium_links))
+    app.add_handler(CommandHandler("revokelink", revoke_premium_link_cmd))
+    app.add_handler(CommandHandler("revokeuserlinks", revoke_user_premium_links_cmd))
+    app.add_handler(CommandHandler("revokelinks", revoke_all_premium_links_cmd))
     app.add_handler(CommandHandler("remove", remove_cmd))
     app.add_handler(CommandHandler("remove18", remove_adult_cmd))
     app.add_handler(CommandHandler("offer", offer_cmd))
