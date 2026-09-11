@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from bot.config import ADMIN_IDS, PLAN_MAP, ADULT_PLAN_MAP, MOVIE_FREE_ADULT_DAYS, offer_details
 from bot.db import get_payment, update_payment, get_user, upsert_user, users, payments, award_referral, sync_auto_filter_premium, save_premium_invite_message
-from bot.services.premium import make_invite, remove_member
+from bot.services.premium import make_invite, remove_member, revoke_invite, revoke_user_invites, revoke_all_invites, category_label
 from bot.services.formatting import bold_small_caps
 from bot.keyboards import offers_menu
 
@@ -140,7 +140,7 @@ async def reject(update, context):
 async def admin_cmd(update, context):
     if not admin_only(update.effective_user.id):
         return
-    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium — All active premium users\n/checkpremium USER_ID — Specific user premium check\n/checkuserpremium USER_ID — Specific user premium check\n\n💬 MESSAGE SPECIFIC USER\n/msg USER_ID Your message\nReply to any message + /msg USER_ID to send the same message\n/remove USER_ID\n/remove18 USER_ID\n/offer — Manage Premium Offers'), parse_mode='HTML')
+    await update.message.reply_text(bold_small_caps('⚙️ ADMIN\n/pending\n/stats\n/premium USER_ID DAYS\n/premium18 USER_ID DAYS\n\n➕ EXTEND ONE USER\n/extend USER_ID days AMOUNT\n/extend USER_ID months AMOUNT\n/extenddays USER_ID AMOUNT\n/extendmonths USER_ID AMOUNT\n\n👥 EXTEND ALL ACTIVE PREMIUM\n/extendall days AMOUNT\n/extendall months AMOUNT\n/extendalldays AMOUNT\n/extendallmonths AMOUNT\n\n/check_premium — All active premium users\n/checkpremium USER_ID — Specific user premium check\n/checkuserpremium USER_ID — Specific user premium check\n\n💬 MESSAGE SPECIFIC USER\n/msg USER_ID Your message\nReply to any message + /msg USER_ID to send the same message\n/remove USER_ID\n/remove18 USER_ID\n\n🔗 PREMIUM GROUP LINKS\n/generatelink USER_ID [movie|adult] — 1 user link\n/generatelinks movie|adult|all — all active users links\n/revokelink INVITE_LINK — revoke one link\n/revokeuserlinks USER_ID [movie|adult] — revoke user links\n/revokelinks movie|adult|all — revoke all bot-created links\n\n/offer — Manage Premium Offers'), parse_mode='HTML')
 
 async def pending(update, context):
     if not admin_only(update.effective_user.id):
@@ -869,3 +869,259 @@ async def message_specific_user(update, context):
             bold_small_caps(f"❌ Message could not be sent.\n\n🆔 User: {uid}\n⚠️ Error: {e}"),
             parse_mode="HTML"
         )
+
+
+async def send_premium_group_invite(context, uid, link, category):
+    """Send the generated premium invite to the user's PM, like payment approval."""
+    from bot.config import INVITE_VALID_HOURS
+    from bot.keyboards import join_menu
+
+    if category == "adult":
+        caption = (
+            "🔞 <b>18+ Premium Group Link</b>\n\n"
+            "लगता है हमारे 18+ ग्रुप पर copyright आ गया है। "
+            "या तो आप ग्रुप से left हो गए हो। "
+            "इस लिए owner ने नया link भेजा है।\n\n"
+            "Join हो जाओ। Link 12 hours के लिए valid रहेगा।"
+        )
+    else:
+        caption = (
+            "🎬 <b>Movie Premium Group Link</b>\n\n"
+            "लगता है हमारे movie ग्रुप पे copyright आ गया है। "
+            "या तो आप ग्रुप से left हो गए हो। "
+            "इस लिए owner ने नया link भेजा है।\n\n"
+            "Join हो जाओ। Link 12 hours के लिए valid रहेगा।"
+        )
+
+    sent = await context.bot.send_message(
+        chat_id=uid,
+        text=bold_small_caps(caption),
+        reply_markup=join_menu(link),
+        parse_mode="HTML",
+    )
+    await save_premium_invite_message(uid, link, sent.message_id, sent.chat_id)
+    return sent
+
+
+async def generate_premium_link(update, context):
+    """Admin: generate a fresh one-user invite for a specific active premium user."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) not in (1, 2):
+        return await update.message.reply_text(
+            bold_small_caps(
+                "Usage:\n/generatelink USER_ID [movie|adult]\n\n"
+                "Example:\n/generatelink 7399162359 movie"
+            ),
+            parse_mode="HTML",
+        )
+
+    try:
+        uid = int(context.args[0])
+    except ValueError:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Invalid numeric User ID."),
+            parse_mode="HTML",
+        )
+
+    category = (context.args[1].lower() if len(context.args) == 2 else "movie")
+    if category not in {"movie", "adult"}:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Category must be <code>movie</code> or <code>adult</code>."),
+            parse_mode="HTML",
+        )
+
+    user = await get_user(uid)
+    now = datetime.now(timezone.utc)
+    prefix = "adult_" if category == "adult" else ""
+    expiry = utc_aware(user.get(prefix + "premium_expiry")) if user else None
+    active = bool(user and user.get(prefix + "premium_status") and expiry and expiry > now)
+
+    if not active:
+        return await update.message.reply_text(
+            bold_small_caps(
+                f"❌ User <code>{uid}</code> does not have active {category_label(category)}."
+            ),
+            parse_mode="HTML",
+        )
+
+    # Keep one current admin-generated invite per user/category.
+    await revoke_user_invites(context.bot, uid, category)
+    link = await make_invite(context.bot, uid, category)
+
+    try:
+        await send_premium_group_invite(context, uid, link, category)
+        status = "✅ Link user ke PM me send kar diya gaya."
+    except Exception as e:
+        status = f"❌ Link generate hua, lekin user ke PM me send nahi ho saka.\n⚠️ {e}"
+
+    await update.message.reply_text(
+        bold_small_caps(
+            f"🔗 <b>{category_label(category)} LINK GENERATED</b>\n\n"
+            f"👤 User ID: <code>{uid}</code>\n"
+            f"⏳ Premium Expiry: {expiry.strftime('%d-%m-%Y %H:%M UTC')}\n"
+            f"⌛ Link validity: 12 hours\n\n"
+            f"{status}"
+        ),
+        parse_mode="HTML",
+    )
+
+
+async def generate_all_premium_links(update, context):
+    """Admin: generate one fresh invite for every active premium user."""
+    if not admin_only(update.effective_user.id):
+        return
+
+    category = (context.args[0].lower() if context.args else "movie")
+    if category not in {"movie", "adult", "all"}:
+        return await update.message.reply_text(
+            bold_small_caps("Usage: /generatelinks movie | adult | all"),
+            parse_mode="HTML",
+        )
+
+    categories = ["movie", "adult"] if category == "all" else [category]
+    now = datetime.now(timezone.utc)
+    all_lines = []
+    total_count = 0
+    total_failed = 0
+
+    for cat in categories:
+        prefix = "adult_" if cat == "adult" else ""
+        query = {
+            prefix + "premium_status": True,
+            prefix + "premium_expiry": {"$exists": True, "$ne": None, "$gt": now},
+        }
+
+        all_lines.append(f"===== {category_label(cat).upper()} =====")
+        count = 0
+        failed = 0
+
+        async for user in users.find(query).sort("user_id", 1):
+            uid = int(user["user_id"])
+            try:
+                await revoke_user_invites(context.bot, uid, cat)
+                link = await make_invite(context.bot, uid, cat)
+                try:
+                    await send_premium_group_invite(context, uid, link, cat)
+                except Exception as pm_error:
+                    # Keep the invite tracked even if the user's PM is unavailable.
+                    print(f"Premium invite PM send failed for {uid}: {pm_error}", flush=True)
+                expiry = utc_aware(user.get(prefix + "premium_expiry"))
+                name = " ".join(
+                    x for x in [user.get("first_name"), user.get("last_name")] if x
+                ).strip() or "Unknown"
+                count += 1
+                all_lines.append(
+                    f"{count}. {name} | {uid} | "
+                    f"expires {expiry.strftime('%d-%m-%Y %H:%M UTC')} | {link}"
+                )
+            except Exception as e:
+                failed += 1
+                all_lines.append(f"FAILED | {uid} | {e}")
+
+        total_count += count
+        total_failed += failed
+        all_lines.append(f"Generated: {count} | Failed: {failed}\n")
+
+    path = Path("/tmp/premium_links.txt")
+    path.write_text(
+        "Premium invite links generated by admin bot\n"
+        f"Generated at: {now.strftime('%d-%m-%Y %H:%M UTC')}\n\n"
+        + "\n".join(all_lines),
+        encoding="utf-8",
+    )
+
+    with path.open("rb") as f:
+        await update.message.reply_document(
+            document=f,
+            filename="premium_links.txt",
+            caption=bold_small_caps(
+                f"🔗 <b>PREMIUM LINKS GENERATED</b>\n\n"
+                f"🎬/🔞 Groups selected: {category}\n"
+                f"✅ Generated: {total_count}\n"
+                f"❌ Failed: {total_failed}\n\n"
+                "Every link is limited to 1 member and valid for 12 hours."
+            ),
+            parse_mode="HTML",
+        )
+
+
+async def revoke_premium_link_cmd(update, context):
+    """Admin: revoke one exact invite link."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 1:
+        return await update.message.reply_text(
+            bold_small_caps("Usage:\n/revokelink INVITE_LINK"),
+            parse_mode="HTML",
+        )
+
+    ok, reason = await revoke_invite(context.bot, context.args[0])
+    if ok:
+        return await update.message.reply_text(
+            bold_small_caps("✅ Invite link revoked successfully."),
+            parse_mode="HTML",
+        )
+    await update.message.reply_text(
+        bold_small_caps(f"❌ Could not revoke link.\n{reason}"),
+        parse_mode="HTML",
+    )
+
+
+async def revoke_user_premium_links_cmd(update, context):
+    """Admin: revoke all stored links for one user."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) not in (1, 2):
+        return await update.message.reply_text(
+            bold_small_caps("Usage:\n/revokeuserlinks USER_ID [movie|adult]"),
+            parse_mode="HTML",
+        )
+
+    try:
+        uid = int(context.args[0])
+    except ValueError:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Invalid numeric User ID."),
+            parse_mode="HTML",
+        )
+
+    category = context.args[1].lower() if len(context.args) == 2 else None
+    if category not in {None, "movie", "adult"}:
+        return await update.message.reply_text(
+            bold_small_caps("❌ Category must be movie or adult."),
+            parse_mode="HTML",
+        )
+
+    count = await revoke_user_invites(context.bot, uid, category)
+    scope = category_label(category) if category else "Movie + 18+"
+    await update.message.reply_text(
+        bold_small_caps(f"✅ Revoked {count} {scope} invite link(s) for user <code>{uid}</code>."),
+        parse_mode="HTML",
+    )
+
+
+async def revoke_all_premium_links_cmd(update, context):
+    """Admin: revoke all bot-created links for one or both premium groups."""
+    if not admin_only(update.effective_user.id):
+        return
+    if len(context.args) != 1 or context.args[0].lower() not in {"movie", "adult", "all"}:
+        return await update.message.reply_text(
+            bold_small_caps("Usage:\n/revokelinks movie\n/revokelinks adult\n/revokelinks all"),
+            parse_mode="HTML",
+        )
+
+    category = context.args[0].lower()
+    categories = ["movie", "adult"] if category == "all" else [category]
+    results = []
+    for cat in categories:
+        count = await revoke_all_invites(context.bot, cat)
+        results.append(f"{category_label(cat)}: {count}")
+
+    await update.message.reply_text(
+        bold_small_caps(
+            "✅ <b>INVITE LINKS REVOKED</b>\n\n" + "\n".join(results)
+        ),
+        parse_mode="HTML",
+    )
+

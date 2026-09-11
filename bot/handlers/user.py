@@ -552,7 +552,11 @@ async def premium_group_member_update(update: Update, context: ContextTypes.DEFA
     if not joined:
         return
 
-    uid = cm.from_user.id if cm.from_user else cm.new_chat_member.user.id
+    # The joined member is the user whose PM contains the invite message.
+    # Use new_chat_member.user.id instead of from_user.id because from_user is
+    # the actor who caused the membership update and is not the safest source
+    # for identifying the newly joined member.
+    uid = cm.new_chat_member.user.id
     field = "joined_group" if category == "movie" else "adult_joined_group"
     try:
         await upsert_user(uid, **{field: True})
