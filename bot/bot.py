@@ -32,6 +32,8 @@ def register_handlers(app):
     app.add_handler(CommandHandler("generatelink", generate_premium_link))
     app.add_handler(CommandHandler("link", generate_premium_link))
     app.add_handler(CommandHandler("generatelinks", generate_all_premium_links))
+    # Unicode small-caps alias: handled as an exact text message (BotFather commands are ASCII-only).
+    app.add_handler(MessageHandler(filters.Regex(r"^/ɢᴇɴᴇʀᴀᴛᴇʟɪɴᴋꜱ(?:@\\w+)?$"), generate_all_premium_links))
     app.add_handler(CommandHandler("links", generate_all_premium_links))
     app.add_handler(CommandHandler("revokelink", revoke_premium_link_cmd))
     app.add_handler(CommandHandler("revokeuserlinks", revoke_user_premium_links_cmd))
